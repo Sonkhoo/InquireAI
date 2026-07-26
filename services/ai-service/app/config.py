@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     NVIDIA_API_KEY: str
     LOGFIRE_API_KEY: str
     NEMOGUARDRAILS_LLM_FRAMEWORK: str = "langchain" 
+    HF_TOKEN: str
 
     # LLM
     primary_model: str = "default_primary_model"
