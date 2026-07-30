@@ -7,32 +7,37 @@ No chunking, embedding, or vector storage.
 """
 
 import hashlib
+import os
 import uuid
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from pprint import pprint
+
+import psutil
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions, TableStructureOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling_core.types.doc import DoclingDocument
+
 from app.exceptions import RetryableParseError, TerminalParseError
 from app.logging import init_logging, logfire
 from app.models import Document
-#debug
-from collections import Counter
-pages = Counter()
 
 init_logging()
 
 MAX_PDF_PAGES = 300
 SUPPORTED_TYPES = {"pdf", "docx", "xlsx", "md"}
 
+_PROC = psutil.Process(os.getpid())
+
+
 pdf_opts = PdfPipelineOptions()
 pdf_opts.do_ocr = False
 pdf_opts.do_table_structure = True
 pdf_opts.generate_page_images = False
-pdf_opts.table_structure_options = TableStructureOptions(do_cell_matching=True)
+pdf_opts.table_structure_options = TableStructureOptions(do_cell_matching=False)
 
 _CONVERTER = DocumentConverter(
     allowed_formats=[
@@ -42,9 +47,16 @@ _CONVERTER = DocumentConverter(
         InputFormat.MD,
     ],
     format_options={
-        InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts),
+        InputFormat.PDF: PdfFormatOption(
+            pipeline_options=pdf_opts,
+            backend=PyPdfiumDocumentBackend,
+        ),
     },
 )
+
+
+def _rss_mb() -> float:
+    return _PROC.memory_info().rss / 1024**2
 
 
 def _compute_checksum(path: Path) -> str:
@@ -62,16 +74,29 @@ def _compute_checksum(path: Path) -> str:
     reraise=True,
 )
 def _convert(path: Path) -> DoclingDocument:
+    logfire.info(f"RSS before convert ({path.name}): {_rss_mb():.1f} MB")
+
     try:
         result = _CONVERTER.convert(str(path), page_range=(1, MAX_PDF_PAGES))
-        
     except FileNotFoundError as e:
         raise TerminalParseError(f"File not found: {path}") from e
     except Exception as e:
+        logfire.warning(f"RSS at conversion exception ({path.name}): {_rss_mb():.1f} MB")
         raise RetryableParseError(str(e)) from e
+
+    logfire.info(f"RSS after convert ({path.name}): {_rss_mb():.1f} MB")
+
+    # PARTIAL_SUCCESS means Docling silently dropped pages (e.g. a resource
+    # failure partway through). A doc missing pages is worse than no doc —
+    # this is terminal, not retryable: retrying re-runs the same pipeline
+    # against the same file and will hit the same wall at the same page.
     if result.status.name == "PARTIAL_SUCCESS":
-        logfire.warning(f"Partial conversion for {path.name}: {result.errors}")
-        raise RetryableParseError(f"Docling failed to convert {path}: {result.errors}")
+        logfire.error(f"Partial conversion for {path.name}: {result.errors}")
+        raise TerminalParseError(
+            f"Docling only partially converted {path.name} "
+            f"(missing pages) — errors: {result.errors}"
+        )
+
     if result.status.name == "FAILURE":
         raise TerminalParseError(f"Docling failed to convert {path}: {result.errors}")
 
@@ -93,7 +118,6 @@ def parse_document(file_path: str, workspace_id: str) -> tuple[DoclingDocument, 
 
     try:
         dl_doc = _convert(path)
-        logfire.info(f"Successfully parsed {path.name}: {len(dl_doc.pages)} pages, {len(dl_doc.texts)} text items, {len(dl_doc.tables)} tables")
     except TerminalParseError:
         logfire.error(f"Terminal parse failure for {path.name}")
         raise
@@ -102,7 +126,6 @@ def parse_document(file_path: str, workspace_id: str) -> tuple[DoclingDocument, 
         raise TerminalParseError(f"Exhausted retries parsing {path.name}") from e
 
     total_pages = len(dl_doc.pages) if getattr(dl_doc, "pages", None) else 0
-    print(f"Parsed {path.name}: {total_pages} pages, {len(dl_doc.texts)} text items, {len(dl_doc.tables)} tables")
 
     document = Document(
         id=str(uuid.uuid4()),
@@ -121,11 +144,13 @@ def parse_document(file_path: str, workspace_id: str) -> tuple[DoclingDocument, 
         f"Parsed {path.name}: {total_pages} pages, "
         f"{len(dl_doc.texts)} text items, {len(dl_doc.tables)} tables"
     )
-    pprint(f"DL DOC TEXT: {dl_doc.texts[:5]}") 
-    logfire.info(f"DL DOC TEXT: {dl_doc.texts[:5]}")  # Print first 5 text items for debugging
+
+    # Debug: per-page text-item distribution. Scoped locally so it doesn't
+    # accumulate across calls to parse_document() within the same process.
+    page_counts = Counter()
     for item in dl_doc.texts:
         for prov in item.prov:
-            pages[prov.page_no] += 1
-    logfire.info(f"Page counts: {pages}")
+            page_counts[prov.page_no] += 1
+    logfire.debug(f"Page counts for {path.name}: {dict(page_counts)}")
 
     return dl_doc, document
