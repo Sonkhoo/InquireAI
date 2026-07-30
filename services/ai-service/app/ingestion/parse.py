@@ -10,7 +10,7 @@ import hashlib
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-
+from pprint import pprint
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions, TableStructureOptions
@@ -19,7 +19,9 @@ from docling_core.types.doc import DoclingDocument
 from app.exceptions import RetryableParseError, TerminalParseError
 from app.logging import init_logging, logfire
 from app.models import Document
-from app.ingestion.clean import detect_prompt_injection
+#debug
+from collections import Counter
+pages = Counter()
 
 init_logging()
 
@@ -62,11 +64,14 @@ def _compute_checksum(path: Path) -> str:
 def _convert(path: Path) -> DoclingDocument:
     try:
         result = _CONVERTER.convert(str(path), page_range=(1, MAX_PDF_PAGES))
+        
     except FileNotFoundError as e:
         raise TerminalParseError(f"File not found: {path}") from e
     except Exception as e:
         raise RetryableParseError(str(e)) from e
-
+    if result.status.name == "PARTIAL_SUCCESS":
+        logfire.warning(f"Partial conversion for {path.name}: {result.errors}")
+        raise RetryableParseError(f"Docling failed to convert {path}: {result.errors}")
     if result.status.name == "FAILURE":
         raise TerminalParseError(f"Docling failed to convert {path}: {result.errors}")
 
@@ -89,7 +94,6 @@ def parse_document(file_path: str, workspace_id: str) -> tuple[DoclingDocument, 
     try:
         dl_doc = _convert(path)
         logfire.info(f"Successfully parsed {path.name}: {len(dl_doc.pages)} pages, {len(dl_doc.texts)} text items, {len(dl_doc.tables)} tables")
-        #detect_prompt_injection(" ".join(dl_doc.texts))
     except TerminalParseError:
         logfire.error(f"Terminal parse failure for {path.name}")
         raise
@@ -117,5 +121,11 @@ def parse_document(file_path: str, workspace_id: str) -> tuple[DoclingDocument, 
         f"Parsed {path.name}: {total_pages} pages, "
         f"{len(dl_doc.texts)} text items, {len(dl_doc.tables)} tables"
     )
+    pprint(f"DL DOC TEXT: {dl_doc.texts[:5]}") 
+    logfire.info(f"DL DOC TEXT: {dl_doc.texts[:5]}")  # Print first 5 text items for debugging
+    for item in dl_doc.texts:
+        for prov in item.prov:
+            pages[prov.page_no] += 1
+    logfire.info(f"Page counts: {pages}")
 
     return dl_doc, document
