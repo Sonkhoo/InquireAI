@@ -11,15 +11,15 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import logfire
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions, TableStructureOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling_core.types.doc import DoclingDocument
 from app.exceptions import RetryableParseError, TerminalParseError
-from app.logging import init_logging
+from app.logging import init_logging, logfire
 from app.models import Document
+from app.ingestion.clean import detect_prompt_injection
 
 init_logging()
 
@@ -88,6 +88,8 @@ def parse_document(file_path: str, workspace_id: str) -> tuple[DoclingDocument, 
 
     try:
         dl_doc = _convert(path)
+        logfire.info(f"Successfully parsed {path.name}: {len(dl_doc.pages)} pages, {len(dl_doc.texts)} text items, {len(dl_doc.tables)} tables")
+        #detect_prompt_injection(" ".join(dl_doc.texts))
     except TerminalParseError:
         logfire.error(f"Terminal parse failure for {path.name}")
         raise
