@@ -1,222 +1,149 @@
 """
-API request and response models for the AI service.
+API request/response models and internal data contracts for the AI service.
 """
 
 from __future__ import annotations
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+# --- Chat contract ------------------------------------------------------------
+
 class ChatRequest(BaseModel):
-    """Model for incoming chat requests."""
+    """Model for incoming chat requests. Called by the Gateway, which has
+    already resolved auth and accessible_file_ids before this point."""
 
     message: str = Field(
         ...,
         min_length=1,
-        max_length=1000,
-        description="The input message for the AI model.",
+        max_length=1000,  
+        description="The user's raw query.",
     )
     thread_id: str = Field(
-        default="default",
-        description="The unique identifier for the conversation thread.",
+        ...,  # required — no shared default across sessions
+        description="Unique identifier for the conversation thread.",
     )
-    prompt: str = Field(
+    workspace_id: str = Field(
         ...,
-        description="The input prompt for the AI model.",
+        description="Workspace the request is scoped to.",
     )
+    session_history: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Prior turns in this thread, for contextual query rewrite.",
+    )
+
+
+class Citation(BaseModel):
+    chunk_id: str
+    file_id: str
+    filename: str | None = None
+    section_title: str | None = None
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 class ChatResponse(BaseModel):
     """Model for chat responses."""
 
-    thread_id: str = Field(
-        default="default",
-        description="The unique identifier for the conversation thread.",
+    thread_id: str = Field(..., description="Echoes the request's thread_id.")
+    response: str = Field(..., description="The synthesized answer text.")
+    source: Literal["doc_search", "github_tool", "general_chat"] = Field(
+        ..., description="Which router branch produced this answer."
     )
-    response: str = Field(
-        ..., 
-        description="The AI model's response to the input message."
-        )
-    model_used: str = Field(
-        ..., 
-        description="The name of the AI model used to generate the response."
-        )
-    processing_time: float = Field(
-        ..., 
-        description="The time taken to process the request in seconds."
-        )
-    token_usage: dict[str, Any] | None = Field(
+    citations: list[Citation] = Field(
+        default_factory=list,
+        description="Structured chunk_id references backing the answer. Empty when abstained or general_chat.",
+    )
+    confidence: float | None = Field(
         default=None,
-        description="Optional field to include token usage information.",
+        ge=0.0, le=1.0,
+        description="Composite retrieval + citation confidence score. None for general_chat.",
     )
-    cached: bool = Field(
+    abstained: bool = Field(
         default=False,
-        description="Indicates whether the response was served from cache.",
+        description="True when confidence fell below threshold — response is a graceful non-answer.",
     )
-    timestamp: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
-        description="The timestamp of the response in ISO 8601 format.",
-    )
+    model_used: str = Field(..., description="The LLM used to generate the response.")
+    processing_time: float = Field(..., description="Time taken to process the request, in seconds.")
+    token_usage: dict[str, Any] | None = Field(default=None)
+    cached: bool = Field(default=False, description="True if served from the RBAC-safe response cache.")
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+
+# --- Health / errors ------------------------------------------------------------
 
 class HealthCheckResponse(BaseModel):
-    """Model for health check responses."""
-
-    status: str = Field(
-        default="healthy", 
-        description="The health status of the service."
-        )
-    uptime: float = Field(
-        ..., 
-        description="The uptime of the service in seconds."
-        )
-    timestamp: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
-        description="The timestamp of the health check in ISO 8601 format.",
-    )
-    version: str = Field(
-        default="1.0.0", 
-        description="The version of the AI service."
-        )
-    environment: str = Field(
-        default="development", 
-        description="The environment in which the service is running."
-        )
+    status: str = Field(default="healthy")
+    uptime: float = Field(..., description="Service uptime in seconds.")
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    version: str = Field(default="1.0.0")
+    environment: str = Field(default="development")
     checks: list[dict[str, Any]] | None = Field(
         default=None,
-        description="Optional detailed checks for various components of the service.",
+        description="Per-dependency checks, e.g. [{'service': 'qdrant', 'ok': true}]",
     )
+
+
+class ErrorDetail(BaseModel):
+    code: str = Field(..., description="Machine-readable error code.")
+    message: str = Field(..., description="Human-readable error message.")
 
 
 class ErrorResponse(BaseModel):
-    """Model for error responses."""
+    """Matches the architecture doc's stated shape: { error: { code, message } }"""
+    error: ErrorDetail
 
-    error: str = Field(
-        ..., 
-        description="The error message."
-        )
-    code: int | None = Field(
-        default=None, 
-        description="Optional error code."
-        )
 
+# --- Chunk / document contracts (ingestion + retrieval) ------------------------
 
 class ChunkMetadata(BaseModel):
-    file_id: str = Field(
-        ..., 
-        description="The unique identifier of the source file."
-        )
-    workspace_id: str = Field(
-        ..., 
-        description="The workspace that owns the chunk."
-        )
-    filename: str = Field(
-        ..., 
-        description="The source filename."
-        )
+    file_id: str = Field(..., description="Source file's unique identifier.")
+    workspace_id: str = Field(..., description="Workspace that owns the chunk.")
+    filename: str = Field(..., description="Source filename.")
     allowed_role_ids: list[str] = Field(
-        default_factory=list, 
-        description="Roles allowed to read the chunk."
-        )
-    chunk_index: int = Field(
-        ..., 
-        ge=0, 
-        description="The zero-based index of the chunk within the document."
-        )
-    page_start: int | None = Field(
-        default=None, 
-        ge=1, 
-        description="First page covered by the chunk."
-        )
-    page_end: int | None = Field(
-        default=None, 
-        ge=1, 
-        description="Last page covered by the chunk."
-        )
-    section_title: str | None = Field(
-        default=None, 
-        description="Section title associated with the chunk."
-        )
-    token_count: int = Field(
-        ..., 
-        ge=0, 
-        description="Token count for the chunk text."
-        )
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        description="When the chunk metadata was created.",
+        default_factory=list,
+        description="Roles allowed to read this chunk — enforced as the Qdrant RBAC filter.",
     )
+    chunk_index: int = Field(..., ge=0, description="Zero-based index within the document.")
+    page_start: int | None = Field(default=None, ge=1)
+    page_end: int | None = Field(default=None, ge=1)
+    section_title: str | None = Field(default=None)
+    token_count: int = Field(..., ge=0)
+    context_summary: str | None = Field(
+        default=None,
+        description="Groq-generated 1-2 sentence contextual summary, prepended before embedding (§1 step 9).",
+    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Chunk(BaseModel):
-    id: str = Field(
-        ..., 
-        description="The unique chunk identifier.")
-    text: str = Field(
-        ..., 
-        description="The chunk text."
-        )
-    chunk_index: int = Field(
-        ..., 
-        ge=0, 
-        description="The zero-based chunk index."
-        )
-    page_start: int | None = Field(
-        default=None, 
-        ge=1, 
-        description="First page covered by the chunk."
-        )
-    page_end: int | None = Field(
-        default=None, 
-        ge=1, 
-        description="Last page covered by the chunk."
-        )
-    embedding: list[float] | None = Field(
-        default=None, 
-        description="Optional embedding vector."
-        )
-    metadata: ChunkMetadata = Field(
-        ..., 
-        description="Chunk metadata."
-        )
+    """Canonical chunk record — written to Qdrant, cited in ChatResponse.
+    chunk_index/page_start/page_end live only on `metadata` to avoid dual
+    sources of truth; do not duplicate them here."""
+
+    id: str = Field(..., description="Unique chunk identifier — this is the chunk_id cited in answers.")
+    text: str = Field(..., description="Contextualized, cleaned chunk text (pre-context_summary prepend).")
+    embedding: list[float] | None = Field(default=None, description="Populated by embed.py; None until embedded.")
+    metadata: ChunkMetadata = Field(...)
 
 
 class Document(BaseModel):
-    id: str = Field(
-        ..., 
-        description="The unique document identifier."
-        )
-    filename: str = Field(
-        ..., 
-        description="The original filename."
-        )
-    file_type: str = Field(
-        ..., 
-        description="The document file type, such as pdf."
-        )
-    workspace_id: str = Field(
-        ..., 
-        description="The workspace that owns the document."
-        )
-    storage_key: str = Field(
-        ..., 
-        description="The storage location key."
-        )
-    uploaded_at: datetime = Field(
-        ..., 
-        description="When the document was uploaded."
-        )
-    total_pages: int = Field(
-        ..., 
-        ge=0, 
-        description="Total number of pages in the document."
-        )
-    checksum: str | None = Field(
-        default=None, 
-        description="Optional document checksum."
-        )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, 
-        description="Extra document metadata."
-        )
+    """Mirrors the Postgres `files` row — tracking/status, not chunk content."""
+
+    id: str = Field(..., description="Unique document identifier.")
+    filename: str = Field(..., description="Original filename.")
+    file_type: str = Field(..., description="pdf | docx | xlsx | md")
+    workspace_id: str = Field(..., description="Workspace that owns the document.")
+    storage_backend: Literal["s3", "disk"] = Field(..., description="Which StorageAdapter implementation holds this file.")
+    storage_key: str = Field(..., description="Storage location key, meaningful only alongside storage_backend.")
+    uploaded_at: datetime = Field(...)
+    total_pages: int = Field(..., ge=0)
+    checksum: str | None = Field(default=None, description="SHA-256 — feeds the duplicate-upload check (§1 step 1).")
+    status: Literal["pending", "processing", "success", "failed"] = Field(
+        default="pending",
+        description="Ingestion state — mirrors the `ingestion_status` table.",
+    )
+    error_message: str | None = Field(default=None, description="Populated when status='failed'.")
+    deleted_at: datetime | None = Field(default=None, description="Soft-delete timestamp, for audit integrity.")
+    metadata: dict[str, Any] = Field(default_factory=dict)

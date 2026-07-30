@@ -1,10 +1,12 @@
-import logfire
 from fastapi import FastAPI
 import uvicorn
 
+from app.logging import init_logging
+
 app = FastAPI()
 
-logfire.configure()
+init_logging()
+import logfire
 logfire.instrument_system_metrics()
 logfire.instrument_fastapi(app)
 
