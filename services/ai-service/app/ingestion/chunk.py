@@ -86,14 +86,13 @@ def chunk_document(
     Pipeline:HybridChunker,contextualize(),deduplicate,Chunk models
     """
     text = dl_doc.export_to_markdown()
-    logfire.info(
-        f"File Length: {len(text)} File first 1000 chars: {text[:1000]} File last 1000 chars: {text[-1000:]}"
-    )
     raw_chunks = list(_CHUNKER.chunk(dl_doc=dl_doc))
 
-
     logfire.info(
-        f"HybridChunker produced {len(raw_chunks)} raw chunks for {filename}"
+        "Chunking completed",
+        filename=filename,
+        raw_chunk_count=len(raw_chunks),
+        text_length=len(text),
     )
 
     processed_chunks = []
@@ -102,11 +101,6 @@ def chunk_document(
         text = _CHUNKER.contextualize(raw_chunk)
         if not text.strip():
             continue
-        logfire.info(
-             f"Chunk {idx}: "
-             f"{tokenizer.count_tokens(text)} tokens, "
-             f"{len(text)} chars"
-        )
         page_start, page_end = _extract_page_range(raw_chunk)
         section_title = _extract_section_title(raw_chunk)
 
@@ -150,9 +144,9 @@ def chunk_document(
         )
 
     logfire.info(
-        f"Final chunk count after cleaning/dedup: {len(chunks)} for {filename}"
-    )
-    logfire.info(
-        f"First 5 chunks: {[chunk.text[:50] for chunk in chunks[:5]]}"
+        "Chunking summary",
+        filename=filename,
+        chunk_count=len(chunks),
+        raw_chunk_count=len(raw_chunks),
     )
     return chunks

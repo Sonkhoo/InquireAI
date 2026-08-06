@@ -38,9 +38,13 @@ def detect_prompt_injection(text: str, threshold: float = 0.7) -> dict:
 
     matched_doc, score = result[0]
 
-    # Check whether your vector store returns similarity or distance.
-    # Adjust the comparison accordingly.
-    logfire.info(f"Prompt injection detection score: {score} for text: {text[:50]}...")
+    if score >= threshold:
+        logfire.warning(
+            "Prompt injection detected",
+            score=float(score),
+            matched_pattern=matched_doc.page_content[:200],
+        )
+
     return {
         "detected": score >= threshold,
         "score": float(score),

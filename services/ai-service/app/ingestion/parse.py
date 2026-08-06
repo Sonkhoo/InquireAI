@@ -74,17 +74,13 @@ def _compute_checksum(path: Path) -> str:
     reraise=True,
 )
 def _convert(path: Path) -> DoclingDocument:
-    logfire.info(f"RSS before convert ({path.name}): {_rss_mb():.1f} MB")
-
     try:
         result = _CONVERTER.convert(str(path), page_range=(1, MAX_PDF_PAGES))
     except FileNotFoundError as e:
         raise TerminalParseError(f"File not found: {path}") from e
     except Exception as e:
-        logfire.warning(f"RSS at conversion exception ({path.name}): {_rss_mb():.1f} MB")
+        logfire.warning("Document conversion failed", filename=path.name, error=str(e))
         raise RetryableParseError(str(e)) from e
-
-    logfire.info(f"RSS after convert ({path.name}): {_rss_mb():.1f} MB")
 
     # PARTIAL_SUCCESS means Docling silently dropped pages (e.g. a resource
     # failure partway through). A doc missing pages is worse than no doc —
@@ -113,7 +109,7 @@ def parse_document(file_path: str, workspace_id: str) -> tuple[DoclingDocument, 
     if file_type not in SUPPORTED_TYPES:
         raise TerminalParseError(f"Unsupported file type: {file_type}")
 
-    logfire.info(f"Parsing document {path.name}", file_type=file_type)
+    logfire.info("Starting document parse", filename=path.name, file_type=file_type)
     checksum = _compute_checksum(path)
 
     try:
@@ -141,16 +137,11 @@ def parse_document(file_path: str, workspace_id: str) -> tuple[DoclingDocument, 
     )
 
     logfire.info(
-        f"Parsed {path.name}: {total_pages} pages, "
-        f"{len(dl_doc.texts)} text items, {len(dl_doc.tables)} tables"
+        "Document parsed successfully",
+        filename=path.name,
+        total_pages=total_pages,
+        text_items=len(dl_doc.texts),
+        table_count=len(dl_doc.tables),
     )
-
-    # Debug: per-page text-item distribution. Scoped locally so it doesn't
-    # accumulate across calls to parse_document() within the same process.
-    page_counts = Counter()
-    for item in dl_doc.texts:
-        for prov in item.prov:
-            page_counts[prov.page_no] += 1
-    logfire.debug(f"Page counts for {path.name}: {dict(page_counts)}")
 
     return dl_doc, document
