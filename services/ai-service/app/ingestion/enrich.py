@@ -12,8 +12,8 @@ from tenacity import (
 from docling_core.types.doc import DoclingDocument
 import logging
 from app.logging import logfire
-from app.models import Chunk
-from app.ingestion.chunk import tokenizer  # reuse the already-loaded Qwen3 tokenizer
+from app.models import Chunk, ChunkMetadata
+from app.ingestion.chunk import hf_tokenizer  # reuse the already-loaded Qwen3 tokenizer
 
 """
 ai_core/ingestion/enrich.py
@@ -41,34 +41,44 @@ estimate, not an exact Groq token count).
 
 GROQ_MODEL = "openai/gpt-oss-120b"
 
-# Conservative buffer under the ~8,000 TPM free-tier ceiling -- leaves room
-# for the instruction wrapper, output tokens, tokenizer mismatch (Qwen3 vs
-# Groq's own tokenizer), and other org traffic sharing the same rate-limit
-# pool. Tune down further if you see 429s in practice.
+
 DOC_TOKEN_THRESHOLD = 6000
 
-MAX_ENRICH_RETRIES = 4
+MAX_ENRICH_RETRIES = 3
 
-SYSTEM_PROMPT_TEMPLATE = """You are generating short context notes for chunks of a document, to improve retrieval in a search system.
+SYSTEM_PROMPT_TEMPLATE = """You are a contextual retrieval assistant.
 
-You will be given the FULL DOCUMENT TEXT once, followed by individual chunks one at a time. For each chunk, write a 1-2 sentence summary that situates the chunk within the overall document -- what section or topic it belongs to, and how it relates to the document as a whole. Be concise and factual. Do not repeat the chunk's content verbatim, just provide the surrounding context.
+Your ONLY task is to generate a short context description for the supplied chunk.
 
-Respond with only the 1-2 sentence context summary. No preamble, no labels, no quotation marks.
+The full document below is provided ONLY so you can understand where the chunk belongs.
 
-FULL DOCUMENT TEXT:
-{document_text}"""
+RULES:
+- Output exactly 1 or 2 COMPLETE sentences.
+- Output approximately 20-50 words.
+- Identify the section/topic the chunk belongs to when possible.
+- Explain how the chunk relates to the surrounding document.
+- Be factual and concise.
+- Do not summarize the entire document.
+- Do not repeat the chunk verbatim.
+- Do not output bullets.
+- Do not output labels.
+- Do not output explanations.
+- NEVER return an empty response.
 
-CHUNK_PROMPT_TEMPLATE = """Here is the chunk to situate within the document above:
+FULL DOCUMENT:
+{document_text}
+"""
+
+CHUNK_PROMPT_TEMPLATE = """Now contextualize ONLY this chunk:
 
 <chunk>
 {chunk_text}
 </chunk>
 
-Give a 1-2 sentence context summary for this chunk."""
+Return ONLY the 1-2 sentence context description."""
 
 
 # --- Errors -----------------------------------------------------------------
-# Mirrors the retryable/terminal distinction used in parse.py.
 
 class EnrichError(Exception):
     """Base class for enrichment failures."""
@@ -76,6 +86,7 @@ class EnrichError(Exception):
 
 class RetryableEnrichError(EnrichError):
     """Transient failure (rate limit, timeout, connection issue) -- retry."""
+    
 
 
 class TerminalEnrichError(EnrichError):
@@ -116,8 +127,23 @@ def _call_groq_for_context(client: Groq, document_text: str, chunk_text: str) ->
                     "content": CHUNK_PROMPT_TEMPLATE.format(chunk_text=chunk_text),
                 },
             ],
+            reasoning_effort="low",
             temperature=0.0,
-            max_tokens=100,
+            max_tokens=200,
+        )
+        message = response.choices[0].message
+        usage = getattr(response, "usage", None)
+        logfire.info(
+            "Groq raw response",
+            model=GROQ_MODEL,
+            finish_reason=response.choices[0].finish_reason,
+            input_tokens=usage.prompt_tokens,
+            output_tokens=usage.completion_tokens,
+            total_tokens=usage.total_tokens,
+            usage=usage.model_dump(),
+            content=repr(message.content),
+            refusal=repr(getattr(message, "refusal", None)),
+            tool_calls=repr(getattr(message, "tool_calls", None)),
         )
     except (RateLimitError, APIConnectionError, APITimeoutError) as exc:
         raise RetryableEnrichError(str(exc)) from exc
@@ -132,6 +158,12 @@ def _call_groq_for_context(client: Groq, document_text: str, chunk_text: str) ->
 
     usage_details = getattr(getattr(response, "usage", None), "prompt_tokens_details", None)
     cached_tokens = getattr(usage_details, "cached_tokens", None) if usage_details else None
+    logfire.info(
+    "Groq usage",
+    model=GROQ_MODEL,
+    cached_tokens=cached_tokens,
+    chunk_preview=chunk_text[:100],
+)
     if cached_tokens:
         logfire.info(f"Groq cache hit: {cached_tokens} cached input tokens")
 
@@ -145,7 +177,6 @@ def enrich_chunks(
     chunks: list[Chunk],
     workspace_id: str,
     filename: str,
-    client: Groq | None = None,
 ) -> list[Chunk]:
     """Contextual summarization for a document's chunks (pipeline step 9).
 
@@ -170,7 +201,7 @@ def enrich_chunks(
 
     document_text = dl_doc.export_to_markdown()
 
-    tokens = tokenizer(document_text)["input_ids"]
+    tokens = hf_tokenizer(document_text)["input_ids"]
     doc_tokens = len(tokens)
 
     if doc_tokens > DOC_TOKEN_THRESHOLD:
@@ -187,26 +218,43 @@ def enrich_chunks(
         f"(workspace_id={workspace_id}, ~{doc_tokens} tokens)"
     )
 
-    groq_client = client or Groq()
+    groq_client =  Groq()
 
     for i, chunk in enumerate(chunks):
+        if chunk.text.strip() == "<!-- image -->":
+            logfire.info(
+                "Skipping contextual enrichment for image-only chunk",
+                filename=filename,
+                workspace_id=workspace_id,
+                chunk_index=i,
+            )
+            continue
         try:
             summary = _call_groq_for_context(groq_client, document_text, chunk.text)
         except TerminalEnrichError as exc:
-            logfire.error(
-                f"enrich.py: terminal error on chunk {i}/{len(chunks)} "
-                f"for {filename} (workspace_id={workspace_id}): {exc}"
-            )
-            continue
+                logfire.error(
+                    f"enrich.py: terminal error on chunk {i}/{len(chunks)} "
+                    f"for {filename} (workspace_id={workspace_id}): {exc}"
+                )
+                raise
         except RetryableEnrichError as exc:
-            logfire.error(
-                f"enrich.py: exhausted retries on chunk {i}/{len(chunks)} "
-                f"for {filename} (workspace_id={workspace_id}): {exc}"
-            )
-            continue
+                logfire.error(
+                    f"enrich.py: exhausted retries on chunk {i}/{len(chunks)} "
+                    f"for {filename} (workspace_id={workspace_id}): {exc}"
+                )
+                raise
 
         chunk.metadata.context_summary = summary
         chunk.text = f"{summary}\n\n{chunk.text}"
+
+        logfire.info(
+            "Chunk enriched",
+            filename=filename,
+            workspace_id=workspace_id,
+            chunk_index=i,
+            chunk_text=chunk.text,
+            context_summary=summary,
+        )
 
     logfire.info(
         f"enrich.py: enrichment complete for {filename} "

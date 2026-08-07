@@ -34,9 +34,10 @@ class MDTableSerializerProvider(ChunkingSerializerProvider):
             params=MarkdownParams(compact_tables=True),
         )
 
+hf_tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_ID)
 
 tokenizer = HuggingFaceTokenizer(
-    tokenizer=AutoTokenizer.from_pretrained(EMBED_MODEL_ID),
+    tokenizer=hf_tokenizer,
     max_tokens=MAX_TOKENS,
 )
 

@@ -1,42 +1,61 @@
-from app.ingestion import enrich
-from app.models import Chunk, ChunkMetadata
+from pathlib import Path
+
+from app.ingestion.parse import parse_document
+from app.ingestion.chunk import chunk_document
+from app.ingestion.enrich import enrich_chunks
 
 
-class _StubDoc:
-    def export_to_markdown(self) -> str:
-        return "# Sample document\n\nThis is the full document text."
+def test_enrich_chunks():
+    pdf = Path(__file__).parent / "test-data" / "sample-1-7.pdf"
 
-
-def test_enrich_chunks_adds_context_summary(monkeypatch):
-    chunk = Chunk(
-        id="chunk-1",
-        text="Original chunk text",
-        embedding=None,
-        metadata=ChunkMetadata(
-            file_id="file-1",
-            workspace_id="workspace-1",
-            filename="sample-1-7.pdf",
-            allowed_role_ids=["viewer"],
-            chunk_index=0,
-            page_start=1,
-            page_end=1,
-            section_title="Intro",
-            token_count=5,
-        ),
+    # 1. Real parsing
+    dl_doc, document = parse_document(
+        file_path=str(pdf),
+        workspace_id="test-workspace",
     )
 
-    monkeypatch.setattr(enrich.tokenizer, "count_tokens", lambda text: 100)
-    monkeypatch.setattr(enrich, "_call_groq_for_context", lambda client, document_text, chunk_text: "Context summary")
+    assert dl_doc is not None
 
-    result = enrich.enrich_chunks(
-        dl_doc=_StubDoc(),
-        chunks=[chunk],
-        workspace_id="workspace-1",
-        filename="sample-1-7.pdf",
-        client=object(),
+    # 2. Real structure-aware chunking
+    chunks = chunk_document(
+        dl_doc=dl_doc,
+        file_id=document.id,
+        workspace_id=document.workspace_id,
+        filename=document.filename,
+        allowed_role_ids=["viewer", "admin"],
     )
 
-    assert len(result) == 1
-    assert result[0].metadata.context_summary == "Context summary"
-    assert result[0].text.startswith("Context summary\n\n")
-    assert "Original chunk text" in result[0].text
+    assert len(chunks) > 0
+
+    # 3. Real enrichment
+    result = enrich_chunks(
+        dl_doc=dl_doc,
+        chunks=chunks,
+        workspace_id=document.workspace_id,
+        filename=document.filename,
+    )
+
+    # 4. Chunk count should not change
+    assert len(result) == len(chunks)
+
+    # 5. Every chunk should have a context summary
+    for chunk in result:
+        # Image-only chunks are intentionally skipped
+        if chunk.text.strip() == "<!-- image -->":
+            continue
+
+        assert chunk.metadata.context_summary is not None
+        assert chunk.metadata.context_summary.strip() != ""
+
+        assert chunk.text.startswith(
+            f"{chunk.metadata.context_summary}\n\n"
+        )
+
+        print("\n" + "=" * 80)
+        print(f"Chunk index: {chunk.metadata.chunk_index}")
+        print(f"Context summary: {chunk.metadata.context_summary}")
+        print(f"Text:\n{chunk.text}")
+
+
+if __name__ == "__main__":
+    test_enrich_chunks()
