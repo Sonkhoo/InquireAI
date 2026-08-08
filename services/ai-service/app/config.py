@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     NVIDIA_API_KEY: str
     LOGFIRE_API_KEY: str
     NEMOGUARDRAILS_LLM_FRAMEWORK: str = "langchain" 
+    QDRANT_API_KEY: str
     HF_TOKEN: str
 
     # LLM
