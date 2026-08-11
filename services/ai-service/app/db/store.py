@@ -39,10 +39,11 @@ settings = get_settings()
 
 QDRANT_URL = settings.QDRANT_URL
 QDRANT_API_KEY = settings.QDRANT_API_KEY
+JINA_API_KEY = settings.JINA_API_KEY
 COLLECTION_NAME = "documents"
 DENSE_MODEL = settings.dense_model
-SPARSE_MODEL = settings.sparse_model
-DENSE_DIM = 2560  
+SPARSE_MODEL =  settings.sparse_model
+DENSE_DIM = 1024  
 MAX_STORE_RETRIES = 3
 UPSERT_BATCH_SIZE = 64
 
@@ -182,6 +183,10 @@ def _chunk_to_point(chunk: Chunk) -> PointStruct:
             "dense": Document(
                 text=chunk.text,
                 model=DENSE_MODEL,
+                options={
+                "jina-api-key": JINA_API_KEY,
+                "dimensions": DENSE_DIM,
+                }
             ),
             "sparse": Document(
                 text=chunk.text,

@@ -4,7 +4,7 @@ from app.ingestion.main import run_pipeline
 
 
 def test_run_pipeline():
-    pdf = Path(__file__).parent / "test-data" / "sample.pdf"
+    pdf = Path(__file__).parent / "test-data" / "sample-1-7.pdf"
 
     # Run the full pipeline
     num_chunks = run_pipeline(

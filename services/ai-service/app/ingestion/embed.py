@@ -11,7 +11,7 @@ from sentence_transformers import SentenceTransformer
 
 from app.logging import logfire
 from app.models import Chunk
-
+from app.config import get_settings
 """
 ai_core/ingestion/embed.py
 
@@ -21,8 +21,8 @@ Embeds each chunk's text using
 Qwen3-Embedding-4B in-process via sentence-transformers, and fills
 chunk.embedding.
 
-Dimension note: Qwen3-Embedding-4B natively outputs 2560-dim vectors (MRL
-supports truncating down to as low as 32, but we use the native 2560 here).
+Dimension note: Qwen3-Embedding-4B natively outputs 1024-dim vectors (MRL
+supports truncating down to as low as 32, but we use the native 1024 here).
 EMBED_DIM below MUST match the Qdrant collection's vector size configured
 in store.py -- a mismatch fails at upsert time, not at import time, so
 keep these two files' constants in sync if you ever change models/dims.
@@ -34,9 +34,9 @@ at retrieval time (chat.py / the query pipeline), not for document
 embedding -- using the doc-side (uninstructed) encode() call here is
 correct per the model card.
 """
-
-EMBED_MODEL_ID = "Qwen/Qwen3-Embedding-4B"
-EMBED_DIM = 2560  # must match store.py's Qdrant VectorParams(size=...)
+settings = get_settings()
+EMBED_MODEL_ID = settings.dense_model
+EMBED_DIM = 1024  # must match store.py's Qdrant VectorParams(size=...)
 
 # Local in-process inference, not an external API -- no tenacity retry here;
 # a batch that OOMs will OOM again on retry. We catch and re-raise with a

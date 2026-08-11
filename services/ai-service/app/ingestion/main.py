@@ -41,12 +41,10 @@ def run_pipeline(
 
     # Parsing stage
 
-    logfire.info(f"STEP START | parse | file={filename}")
-
     parse_start = time.monotonic()
 
     try:
-        dl_doc = parse_document(file_path, workspace_id)
+        [dl_doc, doc] = parse_document(file_path, workspace_id)
     except TerminalParseError as exc:
         parse_elapsed = time.monotonic() - parse_start
 
@@ -67,8 +65,6 @@ def run_pipeline(
     )
 
     # Chunking stage
-
-    logfire.info(f"STEP START | chunk | file={filename}")
 
     chunk_start = time.monotonic()
 
@@ -99,12 +95,6 @@ def run_pipeline(
 
     # Enrichment stage
 
-    logfire.info(
-        f"STEP START | enrich | "
-        f"file={filename} | "
-        f"chunks={len(chunks)}"
-    )
-
     enrich_start = time.monotonic()
 
     chunks = enrich_chunks(
@@ -124,12 +114,6 @@ def run_pipeline(
     )
 
     # Embedding and storing stage
-
-    logfire.info(
-        f"STEP START | store | "
-        f"file={filename} | "
-        f"chunks={len(chunks)}"
-    )
 
     store_start = time.monotonic()
 
@@ -155,7 +139,6 @@ def run_pipeline(
         f"elapsed={store_elapsed:.3f}s"
     )
 
-    
     pipeline_elapsed = time.monotonic() - pipeline_start
 
     logfire.info(

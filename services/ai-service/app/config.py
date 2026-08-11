@@ -14,14 +14,14 @@ class Settings(BaseSettings):
     # Required secrets should come from environment variables.
     GROQ_API_KEY: str
     LANGCHAIN_API_KEY: str
-    NVIDIA_API_KEY: str
     LOGFIRE_API_KEY: str
     QDRANT_API_KEY: str
+    JINA_API_KEY: str
     QDRANT_URL: str
     HF_TOKEN: str
 
     # LLM
-    dense_model: str = "Qwen/Qwen3-Embedding-4B"
+    dense_model: str = "jinaai/jina-embeddings-v4"
     sparse_model: str = "Qdrant/bm25"
     enrich_model: str = "openai/gpt-oss-120b"
 

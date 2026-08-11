@@ -1,4 +1,5 @@
 from __future__ import annotations
+import time
 
 from groq import Groq
 from groq import APIStatusError, APIConnectionError, APITimeoutError, RateLimitError
@@ -133,18 +134,6 @@ def _call_groq_for_context(client: Groq, document_text: str, chunk_text: str) ->
         )
         message = response.choices[0].message
         usage = getattr(response, "usage", None)
-        logfire.info(
-            "Groq raw response",
-            model=GROQ_MODEL,
-            finish_reason=response.choices[0].finish_reason,
-            input_tokens=usage.prompt_tokens if usage else None,
-            output_tokens=usage.completion_tokens if usage else None,
-            total_tokens=usage.total_tokens if usage else None,
-            usage=usage.model_dump() if usage else None,
-            content=repr(message.content),
-            refusal=repr(getattr(message, "refusal", None)),
-            tool_calls=repr(getattr(message, "tool_calls", None)),
-        )
     except (RateLimitError, APIConnectionError, APITimeoutError) as exc:
         raise RetryableEnrichError(str(exc)) from exc
     except APIStatusError as exc:
@@ -158,12 +147,6 @@ def _call_groq_for_context(client: Groq, document_text: str, chunk_text: str) ->
 
     usage_details = getattr(getattr(response, "usage", None), "prompt_tokens_details", None)
     cached_tokens = getattr(usage_details, "cached_tokens", None) if usage_details else None
-    logfire.info(
-    "Groq usage",
-    model=GROQ_MODEL,
-    cached_tokens=cached_tokens,
-    chunk_preview=chunk_text[:100],
-)
     if cached_tokens:
         logfire.info(f"Groq cache hit: {cached_tokens} cached input tokens")
 
@@ -205,12 +188,6 @@ def enrich_chunks(
     doc_tokens = len(tokens)
 
     if doc_tokens > DOC_TOKEN_THRESHOLD:
-        logfire.info(
-            f"enrich.py: skipping contextual summarization for {filename} "
-            f"(workspace_id={workspace_id}, ~{doc_tokens} tokens > threshold "
-            f"{DOC_TOKEN_THRESHOLD}) -- doc exceeds free-tier TPM budget for "
-            f"full-document caching; chunks proceed to embedding unenriched."
-        )
         return chunks
 
     logfire.info(
@@ -222,15 +199,22 @@ def enrich_chunks(
 
     for i, chunk in enumerate(chunks):
         if chunk.text.strip() == "<!-- image -->":
-            logfire.info(
-                "Skipping contextual enrichment for image-only chunk",
-                filename=filename,
-                workspace_id=workspace_id,
-                chunk_index=i,
-            )
             continue
         try:
+            logfire.info(
+                "enrich_chunk_start",
+                chunk_index=i,
+                chunk_chars=len(chunk.text),
+            )
+            start_time = time.perf_counter()
             summary = _call_groq_for_context(groq_client, document_text, chunk.text)
+            elapsed_time = time.perf_counter() - start_time
+            logfire.info(
+                "enrich_chunk_complete",
+                chunk_index=i,
+                elapsed_ms=elapsed_time * 1000,
+                summary_length=len(summary),
+            )
         except TerminalEnrichError as exc:
                 logfire.error(
                     f"enrich.py: terminal error on chunk {i}/{len(chunks)} "
@@ -246,16 +230,6 @@ def enrich_chunks(
 
         chunk.metadata.context_summary = summary
         chunk.text = f"{summary}\n\n{chunk.text}"
-
-        logfire.info(
-            "Chunk enriched",
-            filename=filename,
-            workspace_id=workspace_id,
-            chunk_index=i,
-            chunk_text=chunk.text,
-            context_summary=summary,
-        )
-
     logfire.info(
         f"enrich.py: enrichment complete for {filename} "
         f"({sum(1 for c in chunks if c.metadata.context_summary)}/{len(chunks)} chunks enriched)"

@@ -5,7 +5,7 @@ from app.ingestion.parse import parse_document
 
 
 def test_parse_document():
-    pdf = Path(__file__).parent / "test-data" / "sample.pdf"
+    pdf = Path(__file__).parent / "test-data" / "sample-1-7.pdf"
 
     dl_doc, document = parse_document(
         file_path=str(pdf),
