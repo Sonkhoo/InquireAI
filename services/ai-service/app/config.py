@@ -16,13 +16,14 @@ class Settings(BaseSettings):
     LANGCHAIN_API_KEY: str
     NVIDIA_API_KEY: str
     LOGFIRE_API_KEY: str
-    NEMOGUARDRAILS_LLM_FRAMEWORK: str = "langchain" 
     QDRANT_API_KEY: str
+    QDRANT_URL: str
     HF_TOKEN: str
 
     # LLM
-    primary_model: str = "default_primary_model"
-    secondary_model: str = "default_secondary_model"
+    dense_model: str = "Qwen/Qwen3-Embedding-4B"
+    sparse_model: str = "Qdrant/bm25"
+    enrich_model: str = "openai/gpt-oss-120b"
 
     #Langchain settings
     LANGCHAIN_TRACING: bool = True

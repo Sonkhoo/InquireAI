@@ -79,14 +79,12 @@ def embed_chunks(
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> List[Chunk]:
     """Embed chunk.text for every chunk in place, filling chunk.embedding.
-
     Args:
         chunks: output of enrich_chunks() (or chunk_document() directly, if
             enrichment was skipped for a large doc) -- chunk.text is
             whatever should be embedded, chunk.embedding is currently None.
         batch_size: encode() batch size. Lower this if you hit OOM on
             longer documents or a memory-constrained machine.
-
     Returns:
         The same list, with chunk.embedding populated per chunk.
     """

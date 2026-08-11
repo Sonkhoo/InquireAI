@@ -266,7 +266,7 @@ def _upsert_batch(
 
 
 # public API
-def store_chunks(chunks: List[Chunk], client: QdrantClient | None = None,) -> int:
+def store_chunks(chunks: List[Chunk]) -> int:
     """
     Embed and store chunks in Qdrant.
 
@@ -290,7 +290,7 @@ def store_chunks(chunks: List[Chunk], client: QdrantClient | None = None,) -> in
     if not chunks:
         return 0
 
-    client = client or _get_client()
+    client = _get_client()
 
     ensure_collection(client)
 

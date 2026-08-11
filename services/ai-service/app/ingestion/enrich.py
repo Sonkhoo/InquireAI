@@ -14,7 +14,7 @@ import logging
 from app.logging import logfire
 from app.models import Chunk, ChunkMetadata
 from app.ingestion.chunk import hf_tokenizer  # reuse the already-loaded Qwen3 tokenizer
-
+from app.config import get_settings
 """
 ai_core/ingestion/enrich.py
 
@@ -38,8 +38,8 @@ Qwen3 tokenizer chunk.py already loads, as a proxy for the Groq token count
 (different tokenizer, so treat DOC_TOKEN_THRESHOLD as a conservative
 estimate, not an exact Groq token count).
 """
-
-GROQ_MODEL = "openai/gpt-oss-120b"
+settings = get_settings()
+GROQ_MODEL = settings.enrich_model
 
 
 DOC_TOKEN_THRESHOLD = 6000
@@ -137,10 +137,10 @@ def _call_groq_for_context(client: Groq, document_text: str, chunk_text: str) ->
             "Groq raw response",
             model=GROQ_MODEL,
             finish_reason=response.choices[0].finish_reason,
-            input_tokens=usage.prompt_tokens,
-            output_tokens=usage.completion_tokens,
-            total_tokens=usage.total_tokens,
-            usage=usage.model_dump(),
+            input_tokens=usage.prompt_tokens if usage else None,
+            output_tokens=usage.completion_tokens if usage else None,
+            total_tokens=usage.total_tokens if usage else None,
+            usage=usage.model_dump() if usage else None,
             content=repr(message.content),
             refusal=repr(getattr(message, "refusal", None)),
             tool_calls=repr(getattr(message, "tool_calls", None)),
