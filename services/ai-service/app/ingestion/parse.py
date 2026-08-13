@@ -81,11 +81,6 @@ def _convert(path: Path) -> DoclingDocument:
     except Exception as e:
         logfire.warning("Document conversion failed", filename=path.name, error=str(e))
         raise RetryableParseError(str(e)) from e
-
-    # PARTIAL_SUCCESS means Docling silently dropped pages (e.g. a resource
-    # failure partway through). A doc missing pages is worse than no doc —
-    # this is terminal, not retryable: retrying re-runs the same pipeline
-    # against the same file and will hit the same wall at the same page.
     if result.status.name == "PARTIAL_SUCCESS":
         logfire.error(f"Partial conversion for {path.name}: {result.errors}")
         raise TerminalParseError(
@@ -141,7 +136,8 @@ def parse_document(file_path: str, workspace_id: str) -> tuple[DoclingDocument, 
         filename=path.name,
         total_pages=total_pages,
         text_items=len(dl_doc.texts),
-        table_count=len(dl_doc.tables),
+        text=dl_doc.texts,
+        table_count=len(dl_doc.tables)
     )
 
     return dl_doc, document
