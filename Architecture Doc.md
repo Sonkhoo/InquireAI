@@ -8,17 +8,17 @@ The single source of truth for this project. Everything below reflects every dec
 
 | Layer | Choice |
 |---|---|
-| Backend services (Auth, Ingestion) | TypeScript |
-| AI Core (chat, retrieval, agents, vector storage) | Python |
-| Services | 3 total: Auth & Admin (TS), Ingestion (TS), AI Core (Python — API + BullMQ worker, one codebase, two deployment profiles) |
+| Backend services (Auth, Upload) | TypeScript |
+| AI Core (chat, retrieval, agents, ingestion, vector storage) | Python |
+| Services | 3 total: Auth & Admin (TS), Upload (TS), AI Core (Python — API + BullMQ worker, one codebase, two deployment profiles) |
 | Ingestion parsing | **Docling** (PDF/DOCX/XLSX, structure-aware) + **ColPali** (visually-rich PDF pages — full profile only) |
-| Embeddings | Qwen3-Embedding-0.6B via Hugging Face `sentence-transformers`, in-process inside AI Core |
+| Embeddings | JinaV4 Embedding Model via Hugging Face `sentence-transformers`, in-process inside AI Core |
 | Chat/agent LLM | Groq (fast inference, open-weight models) |
-| Reranker | Cross-encoder (e.g. `bge-reranker-base`), in-process — **full profile only** |
+| Reranker | Cross-encoder (e.g. `bge-reranker-base`),  |
 | Grounding | Lite: single confidence-threshold check. Full: LLM-as-judge + self-correction loop, retries ≤ 2. |
 | Citation enforcement | Structured/function-calling output (grounded prompt forces citations as `chunk_id` references, never free text) + programmatic citation validation, both profiles |
 | Query rewriting | Contextual (light, both profiles — resolves conversational references using session history) + self-correction rewrite (full profile only, triggered on ungrounded judge result) |
-| Evaluation | **Ragas** + **DeepEval** — offline evaluation harness, separate from the runtime LLM-as-Judge (see §11) |
+| Evaluation | **DeepEval** — offline evaluation harness, separate from the runtime LLM-as-Judge (see §11) |
 | GitHub connector auth | OAuth |
 | Databases | PostgreSQL (system of record), Qdrant (document vectors + long-term memory, separate collections), Redis (BullMQ + caching + rate limiting) |
 | File storage | S3-compatible API, LocalStack for local dev, disk-storage fallback behind the same interface |

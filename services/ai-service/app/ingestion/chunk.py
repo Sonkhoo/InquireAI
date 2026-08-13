@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fileinput import filename
 import uuid
 from typing import List
 from transformers import AutoTokenizer
@@ -16,7 +17,8 @@ from docling_core.transforms.serializer.markdown import (
     MarkdownParams,
     MarkdownTableSerializer,
 )
-
+from app.ingestion.clean import clean_text
+from app.guardrails.prompt_guard import detect_prompt_injection
 from app.logging import logfire
 from app.models import Chunk, ChunkMetadata
 
@@ -100,8 +102,26 @@ def chunk_document(
 
     for idx, raw_chunk in enumerate(raw_chunks):
         text = _CHUNKER.contextualize(raw_chunk)
+
         if not text.strip():
             continue
+
+        text = clean_text(text)
+
+        if not text:
+            continue
+
+        if detect_prompt_injection(text):
+            logfire.error(
+                "Prompt injection detected",
+                filename=filename,
+                chunk_index=idx,
+            )
+
+            raise ValueError(
+                f"Prompt injection detected in "
+                f"{filename}, chunk {idx}"
+            )
         page_start, page_end = _extract_page_range(raw_chunk)
         section_title = _extract_section_title(raw_chunk)
 

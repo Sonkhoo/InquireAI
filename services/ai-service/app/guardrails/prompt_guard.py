@@ -22,7 +22,7 @@ VECTOR_STORE = InMemoryVectorStore.from_texts(
     embedding=EMBEDDINGS,
 )
 
-def detect_prompt_injection(text: str, threshold: float = 0.7) -> dict:
+def detect_prompt_injection(text: str, threshold: float = 0.7) -> bool:
     """
     Detects if the text contains prompt injection patterns.
     This is a simple heuristic and can be improved with more sophisticated checks.
@@ -30,11 +30,7 @@ def detect_prompt_injection(text: str, threshold: float = 0.7) -> dict:
     result = VECTOR_STORE.similarity_search_with_score(text, k=1)
 
     if not result:
-        return {
-            "detected": False,
-            "score": 0.0,
-            "matched_pattern": None,
-        }
+        return False
 
     matched_doc, score = result[0]
 
@@ -44,9 +40,5 @@ def detect_prompt_injection(text: str, threshold: float = 0.7) -> dict:
             score=float(score),
             matched_pattern=matched_doc.page_content[:200],
         )
-
-    return {
-        "detected": score >= threshold,
-        "score": float(score),
-        "matched_pattern": matched_doc.page_content,
-    }
+        return True
+    return False
