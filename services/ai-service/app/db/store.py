@@ -175,13 +175,19 @@ def _chunk_to_point(chunk: Chunk) -> PointStruct:
         raise TerminalStoreError(
             f"store.py: chunk.metadata is not a ChunkMetadata instance: {type(meta)}"
         )
+
+    if meta.context_summary:
+        embedding_text = (
+            f"Context: {meta.context_summary}\n\n"
+            f"Content: {chunk.text}"
+        )
     
     return PointStruct(
         id=chunk.id,
 
         vector={
             "dense": Document(
-                text=chunk.text,
+                text=embedding_text if meta.context_summary else chunk.text,
                 model=DENSE_MODEL,
                 options={
                 "jina-api-key": JINA_API_KEY,
@@ -205,11 +211,7 @@ def _chunk_to_point(chunk: Chunk) -> PointStruct:
             "section_title": meta.section_title,
             "token_count": meta.token_count,
             "text": chunk.text,
-            "context_summary": getattr(
-                chunk,
-                "context_summary",
-                None,
-            ),
+            "context_summary": meta.context_summary,
         },
     )
 

@@ -149,12 +149,13 @@ def run_pipeline(
 
     enrich_start = time.monotonic()
 
-    chunks = enrich_chunks(
+    enriched_chunks = enrich_chunks(
         dl_doc=dl_doc,
         chunks=chunks,
         workspace_id=workspace_id,
         filename=filename,
     )
+    logfire.info(f"Enriched chunk context: {[chunk.metadata.context_summary for chunk in enriched_chunks if chunk.metadata.context_summary is not None]}")
 
     enrich_elapsed = time.monotonic() - enrich_start
 
@@ -172,7 +173,7 @@ def run_pipeline(
     store_start = time.monotonic()
 
     try:
-        n_stored = store_chunks(chunks)
+        n_stored = store_chunks(enriched_chunks)
 
     except TerminalStoreError as exc:
         store_elapsed = time.monotonic() - store_start
@@ -230,11 +231,11 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-    "--allowed-role-ids",
-    dest="allowed_role_ids",
-    action="append",
-    default=[],
-    help="Role IDs allowed to access this document. Can be specified multiple times.",
+        "--allowed-role-ids",
+        dest="allowed_role_ids",
+        action="append",
+        default=[],
+        help="Role IDs allowed to access this document. Can be specified multiple times.",
     )
 
     parser.add_argument(
@@ -244,9 +245,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     args = parser.parse_args()
-    args.allowed_role_ids = [
-        role_id for group in args.allowed_role_ids for role_id in group
-    ]
     return args
 
 

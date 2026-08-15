@@ -22,19 +22,23 @@ from typing import List, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.models import Document
 from qdrant_client.http import models as qmodels
-
+from qdrant_client.http.exceptions import (
+    ResponseHandlingException,
+    UnexpectedResponse,
+)
 from app.logging import logfire
 from app.config import get_settings
-from app.ingestion.store import (
-    _get_client,
-    COLLECTION_NAME,
-    DENSE_MODEL,
-    SPARSE_MODEL,
-    DENSE_DIM,
-    JINA_API_KEY,
+from app.db.store import (
+    _get_client
 )
 
 settings = get_settings()
+
+JINA_API_KEY = settings.JINA_API_KEY
+COLLECTION_NAME = "documents"
+DENSE_MODEL = settings.dense_model
+SPARSE_MODEL =  settings.sparse_model
+DENSE_DIM = 1024  
 
 PREFETCH_LIMIT = 20
 DEFAULT_LIMIT = 10
@@ -139,7 +143,30 @@ def hybrid_search(
     logfire.info(
         "hybrid.py: hybrid search complete",
         workspace_id=workspace_id,
+        results=results.points,
         n_results=len(results.points),
     )
 
     return results.points
+
+if __name__ == "__main__":
+    # Example usage
+    from app.logging import init_logging
+
+    init_logging()
+
+    client = _get_client()
+    try:
+        results = hybrid_search(
+            query="What is OMB Guidance?",
+            workspace_id="ws_test",
+            allowed_role_ids=["admin", "role_2"],
+            file_id=None,
+            limit=5,
+            client=client,
+        )
+        for point in results:
+            print(point)
+    except (ResponseHandlingException,UnexpectedResponse) as e:
+        logfire.error(f"Qdrant query failed: {e}")
+    

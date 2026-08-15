@@ -130,7 +130,7 @@ def _call_groq_for_context(client: Groq, document_text: str, chunk_text: str) ->
             ],
             reasoning_effort="low",
             temperature=0.0,
-            max_tokens=80,
+            max_tokens=200,
         )
         message = response.choices[0].message
         usage = getattr(response, "usage", None)
