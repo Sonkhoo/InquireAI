@@ -27,17 +27,6 @@ summary to chunk.text before embedding, and stores it separately on
 chunk.metadata.context_summary (per the Qdrant payload shape: text + context_summary
 as distinct fields).
 
-ASSUMPTION: Chunk (app.models) has a `context_summary: str | None` field.
-If it doesn't yet, add it -- chunk.py currently constructs Chunk without one.
-
-Free-tier gating:
-openai/gpt-oss-120b free tier is ~8,000 tokens/minute (TPM). A single call
-carrying the full document as prefix must itself fit under that ceiling for
-prompt caching to work at all (caching only discounts *repeat* calls, not
-the first one). We gate on document token count -- computed with the same
-Qwen3 tokenizer chunk.py already loads, as a proxy for the Groq token count
-(different tokenizer, so treat DOC_TOKEN_THRESHOLD as a conservative
-estimate, not an exact Groq token count).
 """
 settings = get_settings()
 GROQ_MODEL = settings.enrich_model

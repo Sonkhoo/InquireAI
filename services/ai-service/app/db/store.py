@@ -178,6 +178,7 @@ def _chunk_to_point(chunk: Chunk) -> PointStruct:
 
     if meta.context_summary:
         embedding_text = (
+            f"Title:  {meta.section_title}\n\n"
             f"Context: {meta.context_summary}\n\n"
             f"Content: {chunk.text}"
         )

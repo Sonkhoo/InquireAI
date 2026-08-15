@@ -127,6 +127,23 @@ class Chunk(BaseModel):
     embedding: list[float] | None = Field(default=None, description="Populated by embed.py; None until embedded.")
     metadata: ChunkMetadata = Field(...)
 
+class RetrievedChunk(BaseModel):
+    chunk_id: str
+    text: str
+
+    retrieval_score: float
+    rerank_score: float | None = None
+
+    file_id: str
+    filename: str
+    page_start: int | None = None
+    page_end: int | None = None
+    section_title: str | None = None
+    chunk_index: int
+
+class SynthesizedAnswer(BaseModel):
+    response: str
+    citations: list[str] = Field(default_factory=list)
 
 class Document(BaseModel):
     """Mirrors the Postgres `files` row — tracking/status, not chunk content."""

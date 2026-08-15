@@ -20,17 +20,20 @@ from __future__ import annotations
 from typing import List, Optional
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Document
+from qdrant_client.models import Document, PointStruct
 from qdrant_client.http import models as qmodels
 from qdrant_client.http.exceptions import (
     ResponseHandlingException,
     UnexpectedResponse,
 )
+from app.models import RetrievedChunk
 from app.logging import logfire
 from app.config import get_settings
 from app.db.store import (
     _get_client
 )
+from app.retrieval.reranker import rerank_chunks
+from app.retrieval.synthesizer import synthesize_response
 
 settings = get_settings()
 
@@ -40,9 +43,32 @@ DENSE_MODEL = settings.dense_model
 SPARSE_MODEL =  settings.sparse_model
 DENSE_DIM = 1024  
 
-PREFETCH_LIMIT = 20
-DEFAULT_LIMIT = 10
+PREFETCH_LIMIT = 10
+DEFAULT_LIMIT = 5
 
+
+def _to_retrieved_chunk(point: PointStruct) -> RetrievedChunk:
+    """Convert a Qdrant PointStruct to a RetrievedChunk for downstream
+    consumption.
+
+    Args:
+        point: Qdrant PointStruct from query_points response.
+
+    Returns:
+        RetrievedChunk with text, data and score.
+    """
+    payload = point.payload
+    return RetrievedChunk(
+        chunk_id=str(point.id),
+        text=payload["text"],
+        retrieval_score=point.score,
+        file_id=payload["file_id"],
+        filename=payload["filename"],
+        page_start=payload.get("page_start"),
+        page_end=payload.get("page_end"),
+        section_title=payload.get("section_title"),
+        chunk_index=payload["chunk_index"],
+    )
 
 def build_rbac_filter(
     workspace_id: str,
@@ -83,7 +109,7 @@ def hybrid_search(
     file_id: Optional[str] = None,
     limit: int = DEFAULT_LIMIT,
     client: Optional[QdrantClient] = None,
-):
+) ->List[qmodels.ScoredPoint]: 
     """Dense + sparse retrieval with RRF fusion, RBAC-filtered at the
     Qdrant query itself.
 
@@ -140,6 +166,8 @@ def hybrid_search(
         with_payload=True,
     )
 
+    
+
     logfire.info(
         "hybrid.py: hybrid search complete",
         workspace_id=workspace_id,
@@ -147,7 +175,20 @@ def hybrid_search(
         n_results=len(results.points),
     )
 
-    return results.points
+    retrieved_chunks = [
+    _to_retrieved_chunk(point)
+    for point in results.points
+    ]
+
+    retrieved_reranked_chunks = rerank_chunks(query, retrieved_chunks)
+
+    logfire.info(
+        "hybrid.py: reranking complete",
+        workspace_id=workspace_id,
+        first_res= retrieved_reranked_chunks[0],
+    )
+
+    return retrieved_reranked_chunks
 
 if __name__ == "__main__":
     # Example usage
@@ -158,15 +199,19 @@ if __name__ == "__main__":
     client = _get_client()
     try:
         results = hybrid_search(
-            query="What is OMB Guidance?",
+            query="What the hell?",
             workspace_id="ws_test",
             allowed_role_ids=["admin", "role_2"],
             file_id=None,
             limit=5,
             client=client,
         )
-        for point in results:
-            print(point)
+        print("Retrieved Chunks:", results)
+        answer = synthesize_response(
+            query="What the hell?",
+            retrieved_chunks=results
+        )
+        print("Answer:", answer)
     except (ResponseHandlingException,UnexpectedResponse) as e:
         logfire.error(f"Qdrant query failed: {e}")
     
