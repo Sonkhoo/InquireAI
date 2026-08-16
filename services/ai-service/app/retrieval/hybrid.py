@@ -34,7 +34,7 @@ from app.db.store import (
 )
 from app.retrieval.reranker import rerank_chunks
 from app.retrieval.synthesizer import synthesize_response
-
+from app.retrieval.confidence import compute_confidence
 settings = get_settings()
 
 JINA_API_KEY = settings.JINA_API_KEY
@@ -206,7 +206,13 @@ if __name__ == "__main__":
             limit=5,
             client=client,
         )
-        print("Retrieved Chunks:", results)
+        for chunk in results:
+            confidence = compute_confidence(
+                query="What the hell?",
+                retrieved_chunks=[chunk]
+            )
+            chunk.confidence = confidence
+        print(results)
         answer = synthesize_response(
             query="What the hell?",
             retrieved_chunks=results

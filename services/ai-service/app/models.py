@@ -133,7 +133,7 @@ class RetrievedChunk(BaseModel):
 
     retrieval_score: float
     rerank_score: float | None = None
-
+    confidence: float | None = None
     file_id: str
     filename: str
     page_start: int | None = None

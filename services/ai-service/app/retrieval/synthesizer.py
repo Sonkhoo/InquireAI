@@ -41,15 +41,16 @@ The JSON object must have exactly these fields:
 Rules:
 1. Do not use outside knowledge.
 2. Do not invent facts.
-3. Every factual claim derived from the retrieved context must be
+3. If Query does not match the retrieved context, return an empty response and an empty citations array.
+4. Every factual claim derived from the retrieved context must be
    supported by one or more citation chunk IDs.
-4. Citations MUST contain only chunk IDs supplied in the retrieved context.
-5. Never invent a chunk ID.
-6. Do not invent filenames, page numbers, sections, or other metadata.
-7. If the retrieved context does not contain enough information to answer
+5. Citations MUST contain only chunk IDs supplied in the retrieved context.
+6. Never invent a chunk ID.
+7. Do not invent filenames, page numbers, sections, or other metadata.
+8. If the retrieved context does not contain enough information to answer
    the question, say so clearly and return an empty citations array.
-8. Do not expose internal chunk IDs in the natural-language response.
-9. Return only the JSON object. Do not wrap it in markdown or code fences.
+9. Do not expose internal chunk IDs in the natural-language response.
+10. Return only the JSON object. Do not wrap it in markdown or code fences.
 """
 
 def _build_context(chunks: list[RetrievedChunk]) -> str:
