@@ -70,6 +70,31 @@ class ChatResponse(BaseModel):
     cached: bool = Field(default=False, description="True if served from the RBAC-safe response cache.")
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+# --- Upload contract ------------------------------------------------------------
+
+class UploadResponse(BaseModel):
+    """
+    Response returned after a document is successfully uploaded
+    and processed through the ingestion pipeline.
+    """
+
+    file_id: str = Field(
+        ..., description="Unique identifier assigned to the uploaded file.",
+    )
+
+    filename: str = Field(
+        ..., description="Original filename uploaded by the user.",
+    )
+
+    chunks_stored: int = Field(
+        ...,
+        ge=0, description="Number of chunks successfully stored in Qdrant.",
+    )
+
+    status: Literal["success"] = Field(
+        default="success",
+        description="Upload and ingestion status.",
+    )
 
 # --- Health / errors ------------------------------------------------------------
 
