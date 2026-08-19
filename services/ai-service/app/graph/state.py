@@ -1,19 +1,22 @@
+"""
+Shared graph state for the AI Core LangGraph pipeline.
+"""
 
-
-from langchain_core.messages import AnyMessage
-from langchain_protocol import TypedDict
-from langgraph.graph import add_messages
+from typing import TypedDict
 from typing_extensions import Annotated, Literal
-from models import RetrievedChunk, Citation
+
+from langchain_core.messages import BaseMessage
+from langgraph.graph import add_messages
+
+from app.models import Citation, RetrievedChunk
+
 
 class AgentState(TypedDict, total=False):
-
     # Conversation
-    messages: Annotated[list[AnyMessage], add_messages]
+    messages: Annotated[list[BaseMessage], add_messages]
     thread_id: str
 
-    # Request identity
-    user_id: str
+    # Request identity (auth skipped for demo — workspace/roles sent by client)
     workspace_id: str
     allowed_role_ids: list[str]
 
@@ -22,12 +25,8 @@ class AgentState(TypedDict, total=False):
     rewritten_query: str
     file_id: str | None
 
-    # Routing
-    route: Literal[
-        "document_rag",
-        "github_tool",
-        "general_chat",
-    ]
+    # Routing — matches ChatResponse.source naming (models.py) exactly
+    route: Literal["doc_search", "web_search", "general_chat"]
 
     # Retrieval
     retrieved_chunks: list[RetrievedChunk]

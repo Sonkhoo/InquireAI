@@ -22,6 +22,7 @@ from typing import List, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.models import Document, PointStruct
 from qdrant_client.http import models as qmodels
+from typing import Union
 from qdrant_client.http.exceptions import (
     ResponseHandlingException,
     UnexpectedResponse,
@@ -47,27 +48,27 @@ PREFETCH_LIMIT = 10
 DEFAULT_LIMIT = 5
 
 
-def _to_retrieved_chunk(point: PointStruct) -> RetrievedChunk:
-    """Convert a Qdrant PointStruct to a RetrievedChunk for downstream
+def _to_retrieved_chunk(point: qmodels.ScoredPoint) -> RetrievedChunk:
+    """Convert a Qdrant ScoredPoint to a RetrievedChunk for downstream
     consumption.
 
     Args:
-        point: Qdrant PointStruct from query_points response.
+        point: Qdrant ScoredPoint from query_points response.
 
     Returns:
         RetrievedChunk with text, data and score.
     """
-    payload = point.payload
+    payload = point.payload or {}
     return RetrievedChunk(
         chunk_id=str(point.id),
-        text=payload["text"],
-        retrieval_score=point.score,
-        file_id=payload["file_id"],
-        filename=payload["filename"],
+        text=payload.get("text", ""),
+        retrieval_score=point.score or 0.0,
+        file_id=payload.get("file_id", ""),
+        filename=payload.get("filename", ""),
         page_start=payload.get("page_start"),
         page_end=payload.get("page_end"),
         section_title=payload.get("section_title"),
-        chunk_index=payload["chunk_index"],
+        chunk_index=payload.get("chunk_index", 0),
     )
 
 def build_rbac_filter(
@@ -109,7 +110,7 @@ def hybrid_search(
     file_id: Optional[str] = None,
     limit: int = DEFAULT_LIMIT,
     client: Optional[QdrantClient] = None,
-) ->List[qmodels.ScoredPoint]: 
+) -> list[RetrievedChunk]: 
     """Dense + sparse retrieval with RRF fusion, RBAC-filtered at the
     Qdrant query itself.
 
@@ -190,34 +191,34 @@ def hybrid_search(
 
     return retrieved_reranked_chunks
 
-if __name__ == "__main__":
-    # Example usage
-    from app.logging import init_logging
+# if __name__ == "__main__":
+#     # Example usage
+#     from app.logging import init_logging
 
-    init_logging()
+#     init_logging()
 
-    client = _get_client()
-    try:
-        results = hybrid_search(
-            query="What the hell?",
-            workspace_id="ws_test",
-            allowed_role_ids=["admin", "role_2"],
-            file_id=None,
-            limit=5,
-            client=client,
-        )
-        for chunk in results:
-            confidence = compute_confidence(
-                query="What the hell?",
-                retrieved_chunks=[chunk]
-            )
-            chunk.confidence = confidence
-        print(results)
-        answer = synthesize_response(
-            query="What the hell?",
-            retrieved_chunks=results
-        )
-        print("Answer:", answer)
-    except (ResponseHandlingException,UnexpectedResponse) as e:
-        logfire.error(f"Qdrant query failed: {e}")
+#     client = _get_client()
+#     try:
+#         results = hybrid_search(
+#             query="What the hell?",
+#             workspace_id="ws_test",
+#             allowed_role_ids=["admin", "role_2"],
+#             file_id=None,
+#             limit=5,
+#             client=client,
+#         )
+#         for chunk in results:
+#             confidence = compute_confidence(
+#                 query="What the hell?",
+#                 retrieved_chunks=[chunk]
+#             )
+#             chunk.confidence = confidence
+#         print(results)
+#         answer = synthesize_response(
+#             query="What the hell?",
+#             retrieved_chunks=results
+#         )
+#         print("Answer:", answer)
+#     except (ResponseHandlingException,UnexpectedResponse) as e:
+#         logfire.error(f"Qdrant query failed: {e}")
     

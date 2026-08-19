@@ -38,21 +38,12 @@ class ChatRequest(BaseModel):
     )
 
 
-class Citation(BaseModel):
-    chunk_id: str
-    file_id: str
-    filename: str | None = None
-    section_title: str | None = None
-    page_start: int | None = None
-    page_end: int | None = None
-
-
 class ChatResponse(BaseModel):
     """Model for chat responses."""
 
     thread_id: str = Field(..., description="Echoes the request's thread_id.")
     response: str = Field(..., description="The synthesized answer text.")
-    source: Literal["doc_search", "github_tool", "general_chat"] = Field(
+    source: Literal["doc_search", "web_search", "general_chat"] = Field(
         ..., description="Which router branch produced this answer."
     )
     citations: list[Citation] = Field(
@@ -73,6 +64,16 @@ class ChatResponse(BaseModel):
     token_usage: dict[str, Any] | None = Field(default=None)
     cached: bool = Field(default=False, description="True if served from the RBAC-safe response cache.")
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class Citation(BaseModel):
+    chunk_id: str
+    file_id: str
+    filename: str | None = None
+    section_title: str | None = None
+    page_start: int | None = None
+    page_end: int | None = None
+
 
 # --- Upload contract ------------------------------------------------------------
 
