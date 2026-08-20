@@ -20,6 +20,7 @@ from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions, TableStructureOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling_core.types.doc import DoclingDocument
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 
 from app.exceptions import RetryableParseError, TerminalParseError
 from app.logging import init_logging, logfire
@@ -34,10 +35,16 @@ _PROC = psutil.Process(os.getpid())
 
 
 pdf_opts = PdfPipelineOptions()
+pdf_opts.accelerator_options = AcceleratorOptions(
+    device=AcceleratorDevice.CUDA,
+)
+
 pdf_opts.do_ocr = False
 pdf_opts.do_table_structure = True
 pdf_opts.generate_page_images = False
-pdf_opts.table_structure_options = TableStructureOptions(do_cell_matching=False)
+pdf_opts.table_structure_options = TableStructureOptions(
+    do_cell_matching=False
+)
 
 _CONVERTER = DocumentConverter(
     allowed_formats=[

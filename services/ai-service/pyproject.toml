@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
+
 dependencies = [
     "docling>=2.115.0",
     "fastapi>=0.139.2",
@@ -31,7 +32,10 @@ dependencies = [
     "qdrant-client>=1.19.0",
     "sentence-transformers>=5.6.1",
     "slowapi>=0.1.10",
+    "streamlit>=1.61.1",
     "structlog>=26.1.0",
+    "torch",
+    "torchvision",
     "uvicorn>=0.51.0",
 ]
 
@@ -41,5 +45,13 @@ dev = ["httpx>=0.28.1", "pytest>=9.1.1"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 markers = ["smoke: Core integration tests for critical paths"]
+ignore_no_config = true
 
-ignore_no_config=true
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
