@@ -6,13 +6,7 @@ InquireAI is an enterprise RAG knowledge assistant for asking grounded questions
 
 ## Demo
 
-<!-- Replace the placeholder below with a committed video thumbnail or a hosted demo link. -->
-
 **Demo video:** [Watch the InquireAI demo](docs/media/demo-video.mp4)
-
-<!-- Suggested alternative for a hosted video:
-[![Watch the InquireAI demo](docs/media/demo-thumbnail.png)](YOUR_VIDEO_URL)
--->
 
 ## Features
 
@@ -30,17 +24,14 @@ InquireAI is an enterprise RAG knowledge assistant for asking grounded questions
 
 ### Data ingestion architecture
 
-<!-- Replace with the final architecture diagram when available. -->
 
-![InquireAI data ingestion architecture](docs/diagrams/data-ingestion-architecture.png)
+![InquireAI data ingestion architecture](docs/ingestion.png)
 
 The ingestion path validates an upload, parses it with Docling, cleans and enriches the extracted content, creates structure-aware chunks, generates embeddings, and stores the chunks with access metadata for retrieval.
 
 ### Query architecture
 
-<!-- Replace with the final architecture diagram when available. -->
-
-![InquireAI query architecture](docs/diagrams/query-architecture.png)
+![InquireAI query architecture](docs/query.png)
 
 The query path validates the request, applies workspace and role filters, retrieves relevant chunks, reranks and synthesizes the context, validates citations, and calculates confidence before returning an answer or abstention.
 
@@ -53,25 +44,24 @@ The query path validates the request, applies workspace and role filters, retrie
 | Document parsing | Docling |
 | Embeddings | Hugging Face sentence-transformers |
 | Vector retrieval | Qdrant |
-| Sparse retrieval | PostgreSQL full-text search / BM25 direction |
+| Sparse retrieval | Qdrant / BM25 direction |
 | Generation | Groq through LangChain |
-| Guardrails | Prompt Guard, Presidio, and NeMo Guardrails |
-| Observability | Logfire, LangSmith, and Prometheus-compatible metrics |
+| Guardrails | Prompt Guard, Presidio, and Sementic Similarity |
+| Observability | Logfire |
 
 ## Repository layout
 
 ```text
-services/
-	ai-service/
-		app/
-			api/          FastAPI routes for health, uploads, and chat
-			graph/        LangGraph state, routing, and processing nodes
-			ingestion/    Parsing, cleaning, chunking, enrichment, and embedding
-			retrieval/    Hybrid retrieval, reranking, confidence, and synthesis
-			guardrails/   Prompt and PII safety checks
-		tests/          Ingestion and parsing tests
-		main.py         FastAPI application entry point
-		streamlit_app.py  Local interactive UI
+InquireAI/
+	app/
+		api/          FastAPI routes for health, uploads, and chat
+		graph/        LangGraph state, routing, and processing nodes
+		ingestion/    Parsing, cleaning, chunking, enrichment, and embedding
+		retrieval/    Hybrid retrieval, reranking, confidence, and synthesis
+		guardrails/   Prompt and PII safety checks
+	tests/          Ingestion and parsing tests
+	main.py         FastAPI application entry point
+	streamlit_app.py  Local interactive UI
 ```
 
 ## Local development
