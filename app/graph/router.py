@@ -39,7 +39,7 @@ def build_graph():
     graph.add_edge("synthesize", END)
     graph.add_edge("abstain", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=None)
 
 
 agent_graph = build_graph()

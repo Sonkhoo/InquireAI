@@ -186,7 +186,12 @@ def hybrid_search(
     logfire.info(
         "hybrid.py: reranking complete",
         workspace_id=workspace_id,
-        first_res= retrieved_reranked_chunks[0],
+        n_results=len(retrieved_reranked_chunks),
+        first_res=(
+            retrieved_reranked_chunks[0]
+            if retrieved_reranked_chunks
+            else None
+        ),
     )
 
     return retrieved_reranked_chunks
