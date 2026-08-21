@@ -5,12 +5,20 @@ Validate environment variables and provide default values.
 """
 from functools import lru_cache
 from pydantic_settings import BaseSettings
+from urllib.parse import quote_plus
 
 class Settings(BaseSettings):
     """
     Configuration settings for the AI service.
     """
-
+    # Database configuration
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
+    POSTGRES_HOST: str  
+    POSTGRES_PORT: int 
+    DB_POOL_SIZE: int = 5
+    STM_MAX_MESSAGES: int = 10 
     # Required secrets should come from environment variables.
     GROQ_API_KEY: str
     LANGCHAIN_API_KEY: str
@@ -47,6 +55,15 @@ class Settings(BaseSettings):
         """Check if the application is running in production."""
         return self.APP_ENV.lower() == "production"
 
+    @property
+    def db_url(self) -> str:
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{quote_plus(self.POSTGRES_PASSWORD)}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            "?sslmode=disable&options=-c%20timezone%3DUTC"
+        )
+
+    
 
 @lru_cache
 def get_settings() -> Settings:

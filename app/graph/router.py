@@ -1,18 +1,38 @@
 """
 Assembles the AI Core LangGraph pipeline.
-
-Current flow (Layer 0 — no router/planner/persistence/web-search yet):
-    START -> hybrid_search -> rerank -> confidence -> (synthesize | abstain) -> END
 """
 
 from langgraph.graph import END, START, StateGraph
+from psycopg import Connection
+from psycopg.rows import DictRow, dict_row
+from psycopg_pool import ConnectionPool
+from langgraph.checkpoint.postgres import PostgresSaver
 
+from app.config import get_settings
 from app.graph.nodes.abstain_node import abstain_node
 from app.graph.nodes.confidence_node import confidence_node
 from app.graph.nodes.rag_node import hybrid_search_node
 from app.graph.nodes.rerank_node import rerank_node
 from app.graph.nodes.synthesize_node import synthesize_node
 from app.graph.state import AgentState
+
+settings = get_settings()
+
+_checkpointer: PostgresSaver | None = None
+
+
+def get_checkpointer() -> PostgresSaver:
+    global _checkpointer
+    if _checkpointer is None:
+        pool: ConnectionPool[Connection[DictRow]] = ConnectionPool(
+            conninfo=settings.db_url,
+            max_size=settings.DB_POOL_SIZE,
+            open=True,
+            kwargs={"autocommit": True,"row_factory": dict_row},
+        )
+        _checkpointer = PostgresSaver(pool)
+        _checkpointer.setup()
+    return _checkpointer
 
 
 def _route_on_confidence(state: AgentState) -> str:
@@ -39,7 +59,7 @@ def build_graph():
     graph.add_edge("synthesize", END)
     graph.add_edge("abstain", END)
 
-    return graph.compile(checkpointer=None)
+    return graph.compile(checkpointer=get_checkpointer())
 
 
 agent_graph = build_graph()

@@ -15,6 +15,7 @@ class AgentState(TypedDict, total=False):
     # Conversation
     messages: Annotated[list[BaseMessage], add_messages]
     thread_id: str
+    session_history: list[dict]  
 
     # Request identity (auth skipped for demo — workspace/roles sent by client)
     workspace_id: str
