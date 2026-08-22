@@ -15,6 +15,7 @@ from app.ingestion.main import run_pipeline
 from app.ingestion.parse import SUPPORTED_TYPES
 from app.exceptions import TerminalParseError
 from app.db.store import TerminalStoreError
+from app.db import memory
 
 router = APIRouter(tags=["Files"])
 
@@ -29,8 +30,21 @@ async def upload_file(
     request: Request,
     file: UploadFile = File(...),
     workspace_id: str = Form(...),
+    user_email: str = Form(...),  # demo stand-in for auth
     allowed_role_ids: str = Form(...),  # comma-separated, e.g. "viewer,admin"
 ):
+    # Only admins may ingest documents (auth is skipped for the demo — the
+    # frontend sends the selected user's email and we look up their role).
+    user = memory.get_user_by_email(user_email)
+    if not user:
+        raise HTTPException(status_code=404, detail=f"Unknown demo user: {user_email}")
+    if user["role"] != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail=f"Only admins can ingest files (user role: {user['role']})",
+        )
+    logfire.info("files route: admin verified", email=user_email, role=user["role"])
+
     ext = file.filename.rsplit(".", 1)[-1].lower()
 
     if ext not in SUPPORTED_TYPES:

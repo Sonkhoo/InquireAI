@@ -20,7 +20,7 @@ settings = get_settings()
 
 _checkpointer: PostgresSaver | None = None
 
-
+# The checkpointer is a global singleton that is lazily initialized on first use.
 def get_checkpointer() -> PostgresSaver:
     global _checkpointer
     if _checkpointer is None:

@@ -27,6 +27,14 @@ from qdrant_client.http.exceptions import (
     ResponseHandlingException,
     UnexpectedResponse,
 )
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+import logging
 from app.models import RetrievedChunk
 from app.logging import logfire
 from app.config import get_settings
@@ -46,6 +54,47 @@ DENSE_DIM = 1024
 
 PREFETCH_LIMIT = 10
 DEFAULT_LIMIT = 5
+MAX_SEARCH_RETRIES = 3
+
+
+class HybridSearchError(Exception):
+    """Base class for hybrid search failures."""
+
+
+class RetryableSearchError(HybridSearchError):
+    """Transient Qdrant failure. Safe to retry."""
+
+
+@retry(
+    retry=retry_if_exception_type(RetryableSearchError),
+    stop=stop_after_attempt(MAX_SEARCH_RETRIES),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    before_sleep=before_sleep_log(
+        logging.getLogger(__name__),
+        logging.WARNING,
+    ),
+    reraise=True,
+)
+def _query_points(client: QdrantClient, prefetch, limit: int):
+    try:
+        return client.query_points(
+            collection_name=COLLECTION_NAME,
+            prefetch=prefetch,
+            query=qmodels.FusionQuery(fusion=qmodels.Fusion.RRF),
+            limit=limit,
+            with_payload=True,
+        )
+    except ResponseHandlingException as exc:
+        raise RetryableSearchError(
+            f"hybrid.py: transient Qdrant error: {exc}"
+        ) from exc
+    except UnexpectedResponse as exc:
+        status = getattr(exc, "status_code", None)
+        if status is not None and status >= 500:
+            raise RetryableSearchError(
+                f"hybrid.py: Qdrant server error ({status}): {exc}"
+            ) from exc
+        raise
 
 
 def _to_retrieved_chunk(point: qmodels.ScoredPoint) -> RetrievedChunk:
@@ -159,13 +208,7 @@ def hybrid_search(
         limit=limit,
     )
 
-    results = client.query_points(
-        collection_name=COLLECTION_NAME,
-        prefetch=prefetch,
-        query=qmodels.FusionQuery(fusion=qmodels.Fusion.RRF),
-        limit=limit,
-        with_payload=True,
-    )
+    results = _query_points(client, prefetch, limit)
 
     
 

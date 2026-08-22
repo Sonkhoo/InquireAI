@@ -1,68 +1,118 @@
 import numpy as np
+
 from app.models import RetrievedChunk
 from app.logging import logfire
 
-# AI GENERATED CODE CAUSE I AINT DOING ALL THAT MATHS 
-def compute_confidence(
-    query: str, 
-    retrieved_chunks: list[RetrievedChunk], 
-    alpha: float = 0.2,
-    low_confidence_threshold: float = -8.0
+
+def _sigmoid(x: float) -> float:
+    """Convert a cross-encoder score into a bounded relevance signal."""
+    return float(1.0 / (1.0 + np.exp(-np.clip(x, -10.0, 10.0))))
+
+
+def _compute_top_evidence(
+    rerank_scores: np.ndarray,
 ) -> float:
-    """
-    Computes a robust confidence score for a RAG pipeline combining 
-    RRF Hybrid retrieval scores and Cross-Encoder Reranker logits.
-
-    Args:
-        query: The user's query string.
-        retrieved_chunks: Chunks fetched by the retrieval pipeline.
-        alpha: Weight given to retrieval score vs rerank score.
-               Defaults to 0.2 (giving 80% weight to the Reranker).
-        low_confidence_threshold: Cross-Encoder logit floor. Scores below this
-                                  are treated as complete noise/off-topic.
-
-    Returns:
-        float: Final RAG system confidence score bounded between 0.0 and 1.0.
-    """
-    if not retrieved_chunks:
-        logfire.info(f"No retrieved chunks for query: '{query}'. Confidence: 0.0.")
+    """Strength of the single best cross-encoder result."""
+    if len(rerank_scores) == 0:
         return 0.0
 
-    # 1. Extract raw scores
-    retrieval_scores = np.array([chunk.retrieval_score for chunk in retrieved_chunks], dtype=float)
-    rerank_scores = np.array([
-        chunk.rerank_score if chunk.rerank_score is not None else -10.0 
+    return _sigmoid(float(rerank_scores[0]))
+
+
+def _compute_evidence_agreement(
+    rerank_scores: np.ndarray,
+    k: int = 3,
+) -> float:
+    """
+    Measures how consistently the top-k reranked chunks
+    support the query.
+    """
+    if len(rerank_scores) == 0:
+        return 0.0
+
+    top_k = rerank_scores[:k]
+
+    normalized_scores = np.array(
+        [_sigmoid(float(score)) for score in top_k],
+        dtype=float,
+    )
+
+    return float(np.mean(normalized_scores))
+
+
+def compute_confidence(
+    query: str,
+    retrieved_chunks: list[RetrievedChunk],
+    top_k_agreement: int = 3,
+) -> float:
+    if not retrieved_chunks:
+        logfire.info(
+            f"No retrieved chunks for query: '{query}'. "
+            "Confidence: 0.0."
+        )
+        return 0.0
+
+    # Keep only chunks that have a cross-encoder score.
+    chunks_with_rerank = [
+        chunk
         for chunk in retrieved_chunks
-    ], dtype=float)
+        if chunk.rerank_score is not None
+    ]
 
-    # 2. Normalize RRF Retrieval Scores (Safe to use Min-Max because RRF is rank-relative)
-    r_min, r_max = retrieval_scores.min(), retrieval_scores.max()
-    r_range = r_max - r_min
-    if r_range > 0:
-        retrieval_norm = (retrieval_scores - r_min) / r_range
-    else:
-        retrieval_norm = np.ones_like(retrieval_scores)
+    if not chunks_with_rerank:
+        logfire.warning(
+            f"No reranker scores available for query: '{query}'. "
+            "Confidence: 0.0."
+        )
+        return 0.0
 
-    # 3. Normalize Cross-Encoder Scores using an Absolute Sigmoid Function
-    # We clip to [-10, 10] to prevent exponential overflow/underflow errors
-    rerank_norm = 1 / (1 + np.exp(-np.clip(rerank_scores, -10.0, 10.0)))
+    # Sort by cross-encoder score.
+    chunks_with_rerank.sort(
+        key=lambda chunk: float(chunk.rerank_score or 0.0),
+        reverse=True,
+    )
 
-    # 4. Apply a Hard Penalty for off-topic queries
-    # If the BEST chunk fails our threshold, force the final score to near zero
-    if rerank_scores.max() < low_confidence_threshold:
-        logfire.warning(f"Off-topic query detected: '{query}'. Max logit is {rerank_scores.max()}.")
-        # Scale the confidence strictly into a zero-bound bucket
-        return float(np.mean(rerank_norm) * 0.1)
+    # At this point we know every chunk has a rerank score.
+    # Explicitly narrow the type for the type checker.
+    rerank_scores = np.array(
+        [
+            float(score)
+            for chunk in chunks_with_rerank
+            if (score := chunk.rerank_score) is not None
+        ],
+        dtype=float,
+    )
 
-    # 5. Linear Fusion per chunk
-    combined_scores = (alpha * retrieval_norm) + ((1 - alpha) * rerank_norm)
+    top_evidence = _compute_top_evidence(
+        rerank_scores
+    )
 
-    # 6. Sort descending to prepare for rank decay
-    combined_scores = np.sort(combined_scores)[::-1]
+    evidence_agreement = _compute_evidence_agreement(
+        rerank_scores,
+        k=top_k_agreement,
+    )
 
-    # 7. Aggregate with Harmonic Rank Decay (Position 1 matters more than position 5)
-    rank_weights = 1.0 / (np.arange(len(combined_scores)) + 1)
-    confidence_score = np.average(combined_scores, weights=rank_weights)
+    confidence = (
+        0.60 * top_evidence
+        + 0.40 * evidence_agreement
+    )
 
-    logfire.info(f"Computed confidence for query: '{query}' is {confidence_score:.4f}.")
-    return float(confidence_score)
+    confidence = float(
+        np.clip(confidence, 0.0, 1.0)
+    )
+
+    logfire.info(
+        "Deterministic confidence computed",
+        query=query,
+        confidence_score=round(confidence, 4),
+        top_evidence=round(top_evidence, 4),
+        evidence_agreement=round(evidence_agreement, 4),
+        top_rerank_score=round(
+            float(rerank_scores[0]),
+            4,
+        ),
+        retrieved_count=len(retrieved_chunks),
+        reranked_count=len(chunks_with_rerank),
+    )
+
+    return confidence

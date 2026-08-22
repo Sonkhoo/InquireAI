@@ -73,10 +73,13 @@ def _get_client() -> QdrantClient:
     global _client
 
     if _client is None:
+        # Cloud Inference embeds documents/querys server-side; the default
+        # ~5s httpx timeout is too short for that round trip.
         _client = QdrantClient(
             url=QDRANT_URL,
             api_key=QDRANT_API_KEY,
             cloud_inference=True,
+            timeout=60,
         )
     return _client
 

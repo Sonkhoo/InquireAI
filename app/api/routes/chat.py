@@ -11,9 +11,6 @@ from app.models import ChatRequest, ChatResponse
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 settings = get_settings()
 
-# TODO: replace with real auth later — for now a fixed demo user
-DEMO_USER_ID = "00000000-0000-0000-0000-000000000001"
-
 
 @router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -26,10 +23,17 @@ async def chat(request: ChatRequest):
         allowed_role_ids=request.allowed_role_ids,
     )
     try:
+        # 0. Resolve the demo user from the DB (auth is skipped for the demo).
+        user = memory.get_user_by_email(request.user_email)
+        if not user:
+            raise HTTPException(status_code=404, detail=f"Unknown demo user: {request.user_email}")
+        user_id = str(user["id"])
+        logfire.debug("chat: user resolved", user_id=user_id, role=user["role"])
+
         # 1. Ensure the conversation exists (idempotent)
         memory.create_conversation(
             id=request.thread_id,
-            user_id=DEMO_USER_ID,
+            user_id=user_id,
             workspace_id=request.workspace_id,
             title="New conversation",
         )
@@ -37,7 +41,7 @@ async def chat(request: ChatRequest):
 
         # 2. Load history from DB instead of trusting the client
         history = memory.get_conversation(
-            user_id=DEMO_USER_ID,
+            user_id=user_id,
             workspace_id=request.workspace_id,
             thread_id=request.thread_id,
         )
@@ -85,7 +89,10 @@ async def chat(request: ChatRequest):
         # 5. Persist the assistant's turn + metadata
         answer = result.get("answer", "")
         meta = {
-            "citations": result.get("citations", []),
+            "citations": [
+                citation.model_dump(mode="json")
+                for citation in result.get("citations", [])
+            ],
             "confidence": result.get("confidence"),
             "abstained": result.get("abstained", False),
             "model_used": settings.enrich_model,

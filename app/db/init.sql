@@ -49,10 +49,20 @@ create table if not exists messages (
 );
 create index if not exists idx_messages_conversation_id on messages(conversation_id, created_at);
 
-insert into users (id, email, display_name, password)
-values ('00000000-0000-0000-0000-000000000001', 'john@inquire.ai', 'John', 'dev-only')
+-- Demo users (auth is skipped for the demo — the frontend picks one of these
+-- via a dropdown and the API trusts the email + looks up the role here).
+-- One admin (can ingest), one allowed role (engineer), one disallowed role (marketer).
+insert into users (id, email, display_name, password, role)
+values
+    ('00000000-0000-0000-0000-000000000001', 'john@inquire.ai', 'John', 'dev-only', 'admin'),
+    ('00000000-0000-0000-0000-000000000002', 'alice@inquire.ai', 'Alice', 'dev-only', 'engineer'),
+    ('00000000-0000-0000-0000-000000000003', 'bob@inquire.ai', 'Bob', 'dev-only', 'marketer')
 on conflict (id) do nothing;
 
 insert into workspaces (id, name)
-values ('11111111-1111-1111-1111-111111111111', 'Demo Workspace')
+values
+    ('11111111-1111-1111-1111-111111111111', 'Demo Workspace'),
+    ('22222222-2222-2222-2222-222222222222', 'Engineering'),
+    ('33333333-3333-3333-3333-333333333333', 'Finance'),
+    ('44444444-4444-4444-4444-444444444444', 'HR')
 on conflict (id) do nothing;

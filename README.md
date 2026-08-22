@@ -64,6 +64,30 @@ InquireAI/
 	streamlit_app.py  Local interactive UI
 ```
 
+## Demo flow (auth skipped)
+
+User authentication is skipped for the demo. Instead, three users are seeded in the database and the frontend has a "Signed in as" dropdown that impersonates one of them. The API trusts the submitted email, looks the user up in Postgres, and enforces role checks server-side.
+
+### Seeded demo users
+
+| User | Email | Role | Purpose |
+| --- | --- | --- | --- |
+| John | `john@inquire.ai` | `admin` | Can ingest files |
+| Alice | `alice@inquire.ai` | `engineer` | Allowed role — can chat over ingested docs |
+| Bob | `bob@inquire.ai` | `marketer` | Disallowed role — cannot access ingested docs |
+
+### End-to-end flow
+
+1. **Ingest as admin** — select *John (admin)* in the frontend dropdown, choose a workspace and allowed roles, then upload a file via `POST /files`. The upload route looks up the user in the DB and rejects the request with `403` unless their role is `admin`. The file runs through the ingestion pipeline and chunks are stored with workspace + allowed-role metadata.
+2. **Switch roles** — change the "Signed in as" dropdown to another seeded user (e.g. *Alice (engineer)*).
+3. **Chat** — send a message via `POST /api/chat/`. On every request the backend:
+   - resolves the user by email in the DB (`404` if unknown);
+   - creates the conversation if it doesn't exist, or loads it if it does;
+   - persists the user's message;
+   - runs the LangGraph pipeline with retrieval filtered by the file's allowed roles;
+   - persists the assistant turn with citations/confidence metadata.
+4. **Access control** — retrieval only surfaces chunks whose allowed roles include a role granted to the current request, so Bob (disallowed) gets no evidence from files he can't access.
+
 ## Local development
 
 The AI service requires Python 3.13 or newer and uses `uv` for dependency management.

@@ -20,6 +20,10 @@ class ChatRequest(BaseModel):
         max_length=1000,  
         description="The user's raw query.",
     )
+    user_email: str = Field(
+        ...,
+        description="Demo stand-in for auth: email of the seeded user sending this message.",
+    )
     thread_id: str = Field(
         ...,  # required — no shared default across sessions
         description="Unique identifier for the conversation thread.",

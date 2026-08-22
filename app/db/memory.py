@@ -21,6 +21,30 @@ pool = ConnectionPool(
 pool.open(wait=True, timeout=30)
 
 
+# Demo users (auth is skipped)
+
+def get_user_by_email(email: str) -> dict | None:
+    """Look up a demo user by email. Returns {id, email, display_name, role} or None."""
+    with pool.connection() as conn:
+        cursor = conn.execute(
+            "select id, email, display_name, role from users where email = %s",
+            (email,),
+        )
+        row = cursor.fetchone()
+    return dict(row) if row else None
+
+
+def get_user(user_id: str) -> dict | None:
+    """Look up a demo user by ID."""
+    with pool.connection() as conn:
+        cursor = conn.execute(
+            "select id, email, display_name, role from users where id = %s",
+            (uuid.UUID(user_id),),
+        )
+        row = cursor.fetchone()
+    return dict(row) if row else None
+
+
 # STM (Short Term Memory) for conversations
 
 def create_conversation(id: str, user_id: str, workspace_id: str, title: str) -> uuid.UUID | None:
