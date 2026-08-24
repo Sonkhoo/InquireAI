@@ -8,13 +8,15 @@ from psycopg.rows import DictRow, dict_row
 from psycopg_pool import ConnectionPool
 from langgraph.checkpoint.postgres import PostgresSaver
 
+
 from app.config import get_settings
+from app.graph.nodes.load_stm_node import load_stm_node
 from app.graph.nodes.abstain_node import abstain_node
 from app.graph.nodes.confidence_node import confidence_node
 from app.graph.nodes.rag_node import hybrid_search_node
 from app.graph.nodes.rerank_node import rerank_node
 from app.graph.nodes.synthesize_node import synthesize_node
-from app.graph.runtime import AgentState
+from app.graph.runtime import AgentState, RequestContext
 
 settings = get_settings()
 
@@ -40,15 +42,17 @@ def _route_on_confidence(state: AgentState) -> str:
 
 
 def build_graph():
-    graph = StateGraph(AgentState)
+    graph = StateGraph(AgentState, context_schema=RequestContext)
 
+    graph.add_node("load_stm", load_stm_node) # load session history from DB using RequestContext
     graph.add_node("hybrid_search", hybrid_search_node) # perform a hybrid search using Qdrant with RRF fusion of sparse and dense retrieval results
     graph.add_node("rerank", rerank_node) # rerank the retrieved chunks based on the query using a cross-encoder model
     graph.add_node("confidence", confidence_node) # formulate a score based on evidence agreement and top evidence
     graph.add_node("synthesize", synthesize_node) # generate a response based on the retrieved chunks and the user query with citations
     graph.add_node("abstain", abstain_node)
 
-    graph.add_edge(START, "hybrid_search")
+    graph.add_edge(START, "load_stm")
+    graph.add_edge("load_stm", "hybrid_search")
     graph.add_edge("hybrid_search", "rerank")
     graph.add_edge("rerank", "confidence")
     graph.add_conditional_edges(
