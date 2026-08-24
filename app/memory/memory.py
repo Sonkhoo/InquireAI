@@ -33,19 +33,18 @@ def get_user_by_email(email: str) -> dict | None:
         row = cursor.fetchone()
     return dict(row) if row else None
 
-
 def get_user(user_id: str) -> dict | None:
     """Look up a demo user by ID."""
     with pool.connection() as conn:
         cursor = conn.execute(
-            "select id, email, display_name, role from users where id = %s",
+            "select id, email, display_name, workspace_id, workspaces.name as workspace_name, role "
+            "from users as u "
+            "join workspaces as w on u.workspace_id = w.id "
+            "where u.id = %s",
             (uuid.UUID(user_id),),
         )
         row = cursor.fetchone()
     return dict(row) if row else None
-
-
-# STM (Short Term Memory) for conversations
 
 def create_conversation(id: str, user_id: str, workspace_id: str, title: str) -> uuid.UUID | None:
     """Create a new conversation and return its ID."""
@@ -114,8 +113,19 @@ def rename_conversation(thread_id: str, user_id: str, title: str) -> None:
         )
 
 def delete_conversation(thread_id: str, user_id: str) -> None:
+
     with pool.connection() as conn:
         conn.execute(
             "delete from conversations where id = %s and user_id = %s",
             (uuid.UUID(thread_id), uuid.UUID(user_id)),
         )
+
+# def get_workspace(workspace_id: str) -> dict | None:
+    """Retrieve a workspace by ID."""
+    with pool.connection() as conn:
+        cursor = conn.execute(
+            "select id, name from workspaces where id = %s",
+            (uuid.UUID(workspace_id),),
+        )
+        row = cursor.fetchone()
+    return dict(row) if row else None

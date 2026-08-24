@@ -2,9 +2,9 @@ import time
 import uuid as uuidlib
 from fastapi import APIRouter, HTTPException
 from app.config import get_settings
-from app.db import memory
+from app.memory import memory
 from app.graph.router import agent_graph
-from app.graph.state import AgentState
+from app.graph.runtime import AgentState
 from app.logging import logfire
 from app.models import ChatRequest, ChatResponse
 
@@ -29,6 +29,15 @@ async def chat(request: ChatRequest):
             raise HTTPException(status_code=404, detail=f"Unknown demo user: {request.user_email}")
         user_id = str(user["id"])
         logfire.debug("chat: user resolved", user_id=user_id, role=user["role"])
+        user = memory.get_user(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
+        
+        if not user["workspace_id"] or user["workspace_id"] != request.workspace_id:
+            raise HTTPException(status_code=404, detail=f"User {user_id} has no associated workspace")
+
+
+
 
         # 1. Ensure the conversation exists (idempotent)
         memory.create_conversation(

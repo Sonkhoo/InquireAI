@@ -18,6 +18,7 @@ create table if not exists users (
     display_name varchar(255) not null,
     password varchar(255) not null,
     role varchar(50) references roles(role_name) default 'user',
+    workspace_id uuid references workspaces(id) on delete set null,
     created_at timestamptz default current_timestamp
 );
 --workspaces

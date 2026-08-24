@@ -5,7 +5,7 @@ Reranking happens separately in rerank_node.
 
 from typing import cast
 
-from app.graph.state import AgentState
+from app.graph.runtime import AgentState
 from app.retrieval.hybrid import hybrid_search
 
 

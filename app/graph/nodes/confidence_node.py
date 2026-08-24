@@ -4,7 +4,7 @@ LangGraph node: composite confidence scoring + abstention decision.
 
 from typing import cast
 
-from app.graph.state import AgentState
+from app.graph.runtime import AgentState
 from app.models import RetrievedChunk
 from app.retrieval.confidence import compute_confidence
 from app.logging import logfire

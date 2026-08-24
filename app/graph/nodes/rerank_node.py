@@ -4,7 +4,7 @@ LangGraph node: cross-encoder reranking of hybrid-retrieved chunks.
 
 from typing import cast
 
-from app.graph.state import AgentState
+from app.graph.runtime import AgentState
 from app.models import RetrievedChunk
 from app.retrieval.reranker import rerank_chunks
 

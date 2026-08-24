@@ -1,7 +1,7 @@
 import uuid as uuidlib
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.db import memory
+from app.memory import memory
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 DEMO_USER_ID = "00000000-0000-0000-0000-000000000001"

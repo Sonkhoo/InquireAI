@@ -110,7 +110,9 @@ def synthesize_response(
             "type": "json_object",
         },
     )
-
+    if not response.choices[0].message.content:
+        raise ValueError("Groq API returned an empty response.")
+    
     result = SynthesizedAnswer.model_validate_json(
         response.choices[0].message.content
     )

@@ -5,7 +5,7 @@ LangGraph node: grounded synthesis + programmatic citation validation
 
 from typing import cast
 
-from app.graph.state import AgentState
+from app.graph.runtime import AgentState
 from app.models import Citation, RetrievedChunk
 from app.retrieval.synthesizer import synthesize_response
 from app.logging import logfire

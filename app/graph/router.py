@@ -14,7 +14,7 @@ from app.graph.nodes.confidence_node import confidence_node
 from app.graph.nodes.rag_node import hybrid_search_node
 from app.graph.nodes.rerank_node import rerank_node
 from app.graph.nodes.synthesize_node import synthesize_node
-from app.graph.state import AgentState
+from app.graph.runtime import AgentState
 
 settings = get_settings()
 
@@ -42,10 +42,10 @@ def _route_on_confidence(state: AgentState) -> str:
 def build_graph():
     graph = StateGraph(AgentState)
 
-    graph.add_node("hybrid_search", hybrid_search_node)
-    graph.add_node("rerank", rerank_node)
-    graph.add_node("confidence", confidence_node)
-    graph.add_node("synthesize", synthesize_node)
+    graph.add_node("hybrid_search", hybrid_search_node) # perform a hybrid search using Qdrant with RRF fusion of sparse and dense retrieval results
+    graph.add_node("rerank", rerank_node) # rerank the retrieved chunks based on the query using a cross-encoder model
+    graph.add_node("confidence", confidence_node) # formulate a score based on evidence agreement and top evidence
+    graph.add_node("synthesize", synthesize_node) # generate a response based on the retrieved chunks and the user query with citations
     graph.add_node("abstain", abstain_node)
 
     graph.add_edge(START, "hybrid_search")

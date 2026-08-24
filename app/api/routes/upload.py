@@ -15,7 +15,7 @@ from app.ingestion.main import run_pipeline
 from app.ingestion.parse import SUPPORTED_TYPES
 from app.exceptions import TerminalParseError
 from app.db.store import TerminalStoreError
-from app.db import memory
+from app.memory import memory
 
 router = APIRouter(tags=["Files"])
 
@@ -45,6 +45,11 @@ async def upload_file(
         )
     logfire.info("files route: admin verified", email=user_email, role=user["role"])
 
+    if file.filename is None or file.filename.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail="File must have a valid filename",
+        )
     ext = file.filename.rsplit(".", 1)[-1].lower()
 
     if ext not in SUPPORTED_TYPES:
@@ -114,7 +119,7 @@ async def upload_file(
 
     return UploadResponse(
         file_id=file_id,
-        filename=file.filename,
+        filename=file.filename or "",
         status="success",
         chunks_stored=n_stored,
     )
