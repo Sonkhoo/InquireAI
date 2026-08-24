@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     dense_model: str = "jinaai/jina-embeddings-v4"
     sparse_model: str = "Qdrant/bm25"
     enrich_model: str = "openai/gpt-oss-120b"
+    secondary_model: str = "llama-3.1-8b-instant"
 
     #Langchain settings
     LANGCHAIN_TRACING: bool = True

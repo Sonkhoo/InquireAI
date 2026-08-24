@@ -1,31 +1,12 @@
 from __future__ import annotations
-import time
 
-from groq import Groq
-from groq import APIStatusError, APIConnectionError, APITimeoutError, RateLimitError
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-    before_sleep_log,
-)
-
-from app.logging import logfire
-from app.models import Chunk, RetrievedChunk, ChatResponse, Citation, ChunkMetadata, SynthesizedAnswer
-from app.config import get_settings
+from app.models import RetrievedChunk, SynthesizedAnswer
+from app.llm import get_groq_client, get_primary_model
 
 """
 this module contains the logic for synthesizing a response from retrieved chunks.
 It uses the Groq API to generate a response based on the retrieved chunks and the user query
 """
-
-settings = get_settings()
-# configurations
-GROQ_MODEL = settings.enrich_model
-DOC_TOKEN_THRESHOLD = 6000
-MAX_ENRICH_RETRIES = 3
-GROQ_API_KEY = settings.GROQ_API_KEY
 
 SYSTEM_PROMPT = """
 You are an enterprise knowledge assistant.
@@ -90,10 +71,10 @@ def synthesize_response(
         """.strip()
 
 
-    client = Groq(api_key=GROQ_API_KEY)
+    client = get_groq_client()
 
     response = client.chat.completions.create(
-        model=settings.enrich_model,
+        model=get_primary_model(),
         messages=[
             {
                 "role": "system",

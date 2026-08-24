@@ -10,12 +10,13 @@ from tenacity import (
     wait_exponential,
     before_sleep_log,
 )
-from docling_core.types.doc import DoclingDocument
+from docling_core.types.doc.document import DoclingDocument
 import logging
 from app.logging import logfire
 from app.models import Chunk, ChunkMetadata
 from app.ingestion.chunk import hf_tokenizer  # reuse the already-loaded Qwen3 tokenizer
-from app.config import get_settings
+from app.llm import get_groq_client, get_primary_model
+
 """
 ai_core/ingestion/enrich.py
 
@@ -28,8 +29,7 @@ chunk.metadata.context_summary (per the Qdrant payload shape: text + context_sum
 as distinct fields).
 
 """
-settings = get_settings()
-GROQ_MODEL = settings.enrich_model
+GROQ_MODEL = get_primary_model()
 
 
 DOC_TOKEN_THRESHOLD = 6000
@@ -184,7 +184,7 @@ def enrich_chunks(
         f"(workspace_id={workspace_id}, ~{doc_tokens} tokens)"
     )
 
-    groq_client =  Groq()
+    groq_client = get_groq_client()
 
     for i, chunk in enumerate(chunks):
         if chunk.text.strip() == "<!-- image -->":

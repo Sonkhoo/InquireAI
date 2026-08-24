@@ -121,11 +121,11 @@ def delete_conversation(thread_id: str, user_id: str) -> None:
         )
 
 # def get_workspace(workspace_id: str) -> dict | None:
-    """Retrieve a workspace by ID."""
-    with pool.connection() as conn:
-        cursor = conn.execute(
-            "select id, name from workspaces where id = %s",
-            (uuid.UUID(workspace_id),),
-        )
-        row = cursor.fetchone()
-    return dict(row) if row else None
+#     """Retrieve a workspace by ID."""
+#     with pool.connection() as conn:
+#         cursor = conn.execute(
+#             "select id, name from workspaces where id = %s",
+#             (uuid.UUID(workspace_id),),
+#         )
+#         row = cursor.fetchone()
+#     return dict(row) if row else None
