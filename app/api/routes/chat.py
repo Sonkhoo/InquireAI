@@ -84,21 +84,6 @@ async def chat(request: ChatRequest):
         ):
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        # Load history only after verifying conversation ownership.
-        history = memory.get_conversation(
-            user_id=user_id,
-            workspace_id=user_workspace_id,
-            thread_id=user_thread_id,
-        )
-        session_history = [
-            {"role": m["role"], "content": m["content"]} for m in history
-        ]
-        logfire.debug(
-            "chat: history loaded",
-            thread_id=request.thread_id,
-            history_len=len(session_history),
-            last_message=session_history[-1] if session_history else None,
-        )
 
         # 3. Persist the user's turn BEFORE running the graph
         memory.add_message(user_thread_id, "user", request.message)
@@ -107,7 +92,6 @@ async def chat(request: ChatRequest):
         # 4. Run the graph with server-side history
         input_state: AgentState = {
             "query": request.message,
-            "session_history": session_history,
             "messages": [
                 HumanMessage(content=request.message)
             ],
@@ -145,7 +129,7 @@ async def chat(request: ChatRequest):
             ],
             "confidence": result.get("confidence"),
             "abstained": result.get("abstained", False),
-            "model_used": settings.enrich_model,
+            "model_used": result.get("model_used"),
         }
         memory.add_message(user_thread_id, "assistant", answer, meta)
         logfire.debug("chat: assistant message persisted", thread_id=user_thread_id, answer_preview=answer[:200], metadata=meta)
@@ -160,7 +144,7 @@ async def chat(request: ChatRequest):
             citations=result.get("citations", []),
             confidence=result.get("confidence"),
             abstained=result.get("abstained", False),
-            model_used=settings.enrich_model,
+            model_used=str(result.get("model_used")),
             processing_time=elapsed,
         )
     except HTTPException:

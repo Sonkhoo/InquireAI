@@ -47,7 +47,7 @@ class ChatResponse(BaseModel):
 
     thread_id: str = Field(..., description="Echoes the request's thread_id.")
     response: str = Field(..., description="The synthesized answer text.")
-    source: Literal["doc_search", "web_search", "general_chat"] = Field(
+    source: Literal["doc_search", "off_topic", "general_chat"] = Field(
         ..., description="Which router branch produced this answer."
     )
     citations: list[Citation] = Field(

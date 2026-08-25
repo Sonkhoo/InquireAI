@@ -64,9 +64,9 @@ def general_chat_node(
     response = client.chat.completions.create(
         model=model_name,
         messages=groq_messages,
+        reasoning_effort="low",
         max_tokens=500,
-        temperature=0.7,
-        top_p=1.0,
+        temperature=0.3
     )
 
     if not response.choices:
@@ -91,4 +91,5 @@ def general_chat_node(
         "messages": [
             AIMessage(content=answer)
         ],
+        "model_used": model_name,
     }

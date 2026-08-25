@@ -1,27 +1,50 @@
-from email import message
 from langgraph.runtime import Runtime
+from langchain_core.messages import (
+    AIMessage,
+    HumanMessage,
+)
+
 from app.graph.runtime import AgentState, RequestContext
-from app.memory.memory import get_conversation
-from app.logging import logfire
-def load_stm_node(state: AgentState, runtime: Runtime[RequestContext]) -> dict:
+
+
+def load_stm_node(
+    state: AgentState,
+    runtime: Runtime[RequestContext],
+) -> dict:
     """
-    Load the session history from memory and update the AgentState with it.
+    Build STM context from LangGraph's checkpointed messages.
 
-    Identity (user_id / workspace_id / thread_id) comes from the immutable
-    RequestContext, not from mutable graph state.
+    Excludes the current user message because it is separately
+    available as state["query"].
     """
-    context = runtime.context
 
-    # Load the conversation history from memory
-    history = get_conversation(
-        user_id=context.user_id,
-        workspace_id=context.workspace_id,
-        thread_id=context.thread_id,
-        limit=None,  # Load all messages
-    )
-    logfire.info("history", history=history)
+    messages = state.get("messages", [])
 
-    return {"session_history":[
-        {"role": message["role"], "content": message["content"]} for message in history
-    ] } 
+    history_messages = messages
 
+    if messages and isinstance(messages[-1], HumanMessage):
+        history_messages = messages[:-1]
+
+    session_history = []
+
+    for message in history_messages:
+
+        if isinstance(message, HumanMessage):
+            role = "user"
+
+        elif isinstance(message, AIMessage):
+            role = "assistant"
+
+        else:
+            continue
+
+        session_history.append(
+            {
+                "role": role,
+                "content": str(message.content),
+            }
+        )
+
+    return {
+        "session_history": session_history,
+    }

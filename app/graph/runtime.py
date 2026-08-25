@@ -31,7 +31,7 @@ class AgentState(TypedDict, total=False):
     file_id: str | None
 
     # Routing — matches ChatResponse.source naming (models.py) exactly
-    route: Literal["doc_search", "general_chat"]
+    route: Literal["doc_search", "general_chat", "off_topic"]
 
     # Retrieval
     retrieved_chunks: list[RetrievedChunk]
@@ -43,6 +43,7 @@ class AgentState(TypedDict, total=False):
     # Generation
     answer: str
     citations: list[Citation]
+    model_used: str | None
 
     # Evaluation
     confidence: float
