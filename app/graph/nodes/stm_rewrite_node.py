@@ -1,16 +1,15 @@
 from __future__ import annotations
 from typing import Optional
 from app.graph.runtime import AgentState
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from app.llm import get_groq_client, get_secondary_model
-
+from app.logging import logfire
 
 class RewrittenQuery(BaseModel):
-    query: str = Field(...,
+    model_config = ConfigDict(extra="forbid")
+    rewritten_query: str = Field(...,
         description="The rewritten query after STM processing."
     )
-    retrieval_query: str = Field(..., description="The query used for retrieval after one hop.")
-    file_id: Optional[str] = Field(None, description="Optional file ID associated with the query.")
 
 
 def stm_rewrite_node(state: AgentState) -> dict:
@@ -26,13 +25,13 @@ def stm_rewrite_node(state: AgentState) -> dict:
 
         return {
             "rewritten_query": query,
-            "retrieval_query": query,
         }
 
     conversation = "\n".join(
         f"{message['role']}: {message['content']}"
         for message in session_history
     )
+    logfire.info("STM rewrite input", query=query, conversation=conversation)
 
     prompt = f"""
     You are a query-resolution component for an enterprise AI assistant.
@@ -65,7 +64,9 @@ def stm_rewrite_node(state: AgentState) -> dict:
 
     7. Do not rewrite a casual greeting into a knowledge query.
 
-    Return only the standalone query.
+    8. Return the response in JSON format.
+
+    Return only the structured output requested by the schema.
     """
 
     client = get_groq_client()
@@ -78,20 +79,28 @@ def stm_rewrite_node(state: AgentState) -> dict:
                 "content": prompt,
             },
         ],
-        reasoning_effort="low",
+        reasoning_effort="medium",
         temperature=0.0,
         response_format={
-            "type": "json_object",
-        },
+            "type": "json_schema",
+            "json_schema": {
+                "strict": True,
+                "name": "rewritten_query",
+                "schema": RewrittenQuery.model_json_schema(),
+            },
+        }
     )
     if not response.choices[0].message.content:
-        raise ValueError("Groq API returned an empty response.")
+            raise ValueError(
+                "Groq API returned an empty structured response. "
+                f"finish_reason={response.choices[0].finish_reason}, "
+                f"message={response.choices[0].message}"
+            )
 
     result = RewrittenQuery.model_validate_json(
         response.choices[0].message.content
     )
-
+    logfire.info("STM rewrite result", rewritten_query=result.rewritten_query)
     return {
-        "rewritten_query": result.query,
-        "retrieval_query": result.query,
+        "rewritten_query": result.rewritten_query
     }

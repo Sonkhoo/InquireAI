@@ -6,20 +6,21 @@ from psycopg_pool import ConnectionPool
 
 settings = get_settings()
 
-# check= validates a connection is alive before handing it out, so
-# connections killed by a DB restart are discarded instead of raising
-# "Software caused connection abort" on the client.
+
 pool = ConnectionPool(
     conninfo=settings.db_url,
     max_size=settings.DB_POOL_SIZE,
     kwargs={"connect_timeout": 5, "row_factory": dict_row},
     check=ConnectionPool.check_connection,
+    open=False,
 )
 
-# Block until Postgres is reachable instead of serving requests with
-# a dead pool (e.g. when the API starts before docker compose is up).
-pool.open(wait=True, timeout=30)
+def open_pool() -> None:
+    pool.open(wait=True, timeout=30)
 
+
+def close_pool() -> None:
+    pool.close()
 
 # Demo users (auth is skipped)
 
@@ -37,11 +38,10 @@ def get_user(user_id: str) -> dict | None:
     """Look up a demo user by ID."""
     with pool.connection() as conn:
         cursor = conn.execute(
-            "select id, email, display_name, workspace_id, workspaces.name as workspace_name, role "
-            "from users as u "
-            "join workspaces as w on u.workspace_id = w.id "
-            "where u.id = %s",
-            (uuid.UUID(user_id),),
+            "select id, email, display_name, workspace_id, role "
+            "from users "
+            "where id = %s",
+            (user_id,),
         )
         row = cursor.fetchone()
     return dict(row) if row else None
@@ -120,6 +120,24 @@ def delete_conversation(thread_id: str, user_id: str) -> None:
             (uuid.UUID(thread_id), uuid.UUID(user_id)),
         )
 
+def conversation_belongs_to_user(
+    thread_id: str,
+    user_id: str,
+    workspace_id: str,
+) -> bool:
+    with pool.connection() as conn:
+        row = conn.execute(
+            """
+            select 1
+            from conversations
+            where id = %s
+              and user_id = %s
+              and workspace_id = %s
+            """,
+            (uuid.UUID(thread_id), uuid.UUID(user_id), uuid.UUID(workspace_id)),
+        ).fetchone()
+
+    return row is not None
 # def get_workspace(workspace_id: str) -> dict | None:
 #     """Retrieve a workspace by ID."""
 #     with pool.connection() as conn:

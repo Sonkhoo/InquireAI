@@ -10,6 +10,13 @@ insert into roles (role_name) values ('admin') on conflict do nothing;;
 insert into roles (role_name) values ('engineer') on conflict do nothing;;
 insert into roles (role_name) values ('marketer') on conflict do nothing;;
 
+--workspaces
+create table if not exists workspaces (
+    id uuid primary key default uuid_generate_v4(),
+    name varchar(255) not null,
+    description text,
+    created_at timestamptz default current_timestamp
+);
 
 --users
 create table if not exists users (
@@ -19,13 +26,6 @@ create table if not exists users (
     password varchar(255) not null,
     role varchar(50) references roles(role_name) default 'user',
     workspace_id uuid references workspaces(id) on delete set null,
-    created_at timestamptz default current_timestamp
-);
---workspaces
-create table if not exists workspaces (
-    id uuid primary key default uuid_generate_v4(),
-    name varchar(255) not null,
-    description text,
     created_at timestamptz default current_timestamp
 );
 
@@ -50,16 +50,6 @@ create table if not exists messages (
 );
 create index if not exists idx_messages_conversation_id on messages(conversation_id, created_at);
 
--- Demo users (auth is skipped for the demo — the frontend picks one of these
--- via a dropdown and the API trusts the email + looks up the role here).
--- One admin (can ingest), one allowed role (engineer), one disallowed role (marketer).
-insert into users (id, email, display_name, password, role)
-values
-    ('00000000-0000-0000-0000-000000000001', 'john@inquire.ai', 'John', 'dev-only', 'admin'),
-    ('00000000-0000-0000-0000-000000000002', 'alice@inquire.ai', 'Alice', 'dev-only', 'engineer'),
-    ('00000000-0000-0000-0000-000000000003', 'bob@inquire.ai', 'Bob', 'dev-only', 'marketer')
-on conflict (id) do nothing;
-
 insert into workspaces (id, name)
 values
     ('11111111-1111-1111-1111-111111111111', 'Demo Workspace'),
@@ -67,3 +57,11 @@ values
     ('33333333-3333-3333-3333-333333333333', 'Finance'),
     ('44444444-4444-4444-4444-444444444444', 'HR')
 on conflict (id) do nothing;
+
+insert into users (id, email, display_name, password, role, workspace_id)
+values
+    ('00000000-0000-0000-0000-000000000001', 'john@inquire.ai', 'John', 'dev-only', 'admin', '11111111-1111-1111-1111-111111111111'),
+    ('00000000-0000-0000-0000-000000000002', 'alice@inquire.ai', 'Alice', 'dev-only', 'engineer','11111111-1111-1111-1111-111111111111'),
+    ('00000000-0000-0000-0000-000000000003', 'bob@inquire.ai', 'Bob', 'dev-only', 'marketer', '11111111-1111-1111-1111-111111111111')
+on conflict (id) do nothing;
+

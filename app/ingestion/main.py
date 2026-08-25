@@ -213,7 +213,7 @@ def run_pipeline(
     return n_stored
 
 
-def parse_args() -> argparse.Namespace:
+# def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run the AI Core document ingestion pipeline."
     )
@@ -248,39 +248,39 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def main() -> None:
-    args = parse_args()
+# def main() -> None:
+#     args = parse_args()
 
-    try:
-        stored = run_pipeline(
-            file_path=args.file,
-            workspace_id=args.workspace_id,
-            allowed_role_ids=args.allowed_role_ids,
-            file_id=args.file_id,
-        )
+#     try:
+#         stored = run_pipeline(
+#             file_path=args.file,
+#             workspace_id=args.workspace_id,
+#             allowed_role_ids=args.allowed_role_ids,
+#             file_id=args.file_id,
+#         )
 
-        print(f"\nIngestion complete. Stored {stored} chunks.")
+#         print(f"\nIngestion complete. Stored {stored} chunks.")
 
-    except (TerminalParseError, TerminalStoreError) as exc:
-        print(
-            f"\nIngestion failed: {exc}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+#     except (TerminalParseError, TerminalStoreError) as exc:
+#         print(
+#             f"\nIngestion failed: {exc}",
+#             file=sys.stderr,
+#         )
+#         sys.exit(1)
 
-    except Exception as exc:
-        logfire.exception(
-            "UNEXPECTED INGESTION ERROR",
-            error=str(exc),
-        )
+#     except Exception as exc:
+#         logfire.exception(
+#             "UNEXPECTED INGESTION ERROR",
+#             error=str(exc),
+#         )
 
-        print(
-            f"\nUnexpected ingestion error: {exc}",
-            file=sys.stderr,
-        )
+#         print(
+#             f"\nUnexpected ingestion error: {exc}",
+#             file=sys.stderr,
+#         )
 
-        sys.exit(1)
+#         sys.exit(1)
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     main()

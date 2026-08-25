@@ -2,8 +2,7 @@ from email import message
 from langgraph.runtime import Runtime
 from app.graph.runtime import AgentState, RequestContext
 from app.memory.memory import get_conversation
-from langgraph.runtime import Runtime
-
+from app.logging import logfire
 def load_stm_node(state: AgentState, runtime: Runtime[RequestContext]) -> dict:
     """
     Load the session history from memory and update the AgentState with it.
@@ -20,6 +19,7 @@ def load_stm_node(state: AgentState, runtime: Runtime[RequestContext]) -> dict:
         thread_id=context.thread_id,
         limit=None,  # Load all messages
     )
+    logfire.info("history", history=history)
 
     return {"session_history":[
         {"role": message["role"], "content": message["content"]} for message in history

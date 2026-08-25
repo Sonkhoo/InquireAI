@@ -24,9 +24,9 @@ class ChatRequest(BaseModel):
         ...,
         description="Demo stand-in for auth: email of the seeded user sending this message.",
     )
-    thread_id: str = Field(
-        ...,  # required — no shared default across sessions
-        description="Unique identifier for the conversation thread.",
+    thread_id: str | None = Field(
+        default=None,
+        description="Existing conversation ID; omitted to start a new conversation.",
     )
     workspace_id: str = Field(
         ...,
