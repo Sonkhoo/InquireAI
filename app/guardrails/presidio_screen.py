@@ -39,20 +39,24 @@ def detect_pii(text: str) -> bool:
     return bool(results)
 
 
-def anonymize_pii(text: str) -> str:
-    """
-    Redact detected PII from the text, e.g. "email John@x.com"
-    -> "email <EMAIL_ADDRESS>".
-    """
+def anonymize_pii(text: str) -> tuple[str, bool]:
     if not text.strip():
-        return text
+        return text, False
 
     analyzer = get_analyzer()
     anonymizer = get_anonymizer()
 
-    results = analyzer.analyze(text=text, language="en")
+    results = analyzer.analyze(
+        text=text,
+        language="en",
+    )
 
     if not results:
-        return text
+        return text, False
 
-    return anonymizer.anonymize(text=text, analyzer_results=results).text
+    anonymized = anonymizer.anonymize(
+        text=text,
+        analyzer_results=results,
+    )
+
+    return anonymized.text, True

@@ -52,6 +52,10 @@ class AgentState(TypedDict, total=False):
     unsupported_claims: list[str]
     abstained: bool
 
+    #guardrails
+    guard_status: Literal["allowed", "blocked"] | None
+    guard_reason: str | None
+
     # Control
     hop_count: int
 

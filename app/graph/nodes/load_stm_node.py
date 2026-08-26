@@ -5,7 +5,7 @@ from langchain_core.messages import (
 )
 
 from app.graph.runtime import AgentState, RequestContext
-
+from app.logging import logfire
 
 def load_stm_node(
     state: AgentState,
@@ -45,6 +45,12 @@ def load_stm_node(
             }
         )
 
+    logfire.info(
+        "STM context loaded",
+        session_history=session_history,
+    )
+
     return {
         "session_history": session_history,
+        "hop_count": 0,
     }

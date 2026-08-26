@@ -49,7 +49,7 @@ async def chat(request: ChatRequest):
         user = memory.get_user(user_id)
         if not user:
             raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
-        
+        user_role = user["role"]
         db_workspace_id = user.get("workspace_id")
         requested_workspace_id = uuidlib.UUID(str(request.workspace_id))
         if not db_workspace_id:
@@ -67,6 +67,7 @@ async def chat(request: ChatRequest):
                     f"(db={db_workspace_id})"
                 )
             )
+        
         #user_workspace_id = requested_workspace_id
         if user_thread_id is None or not user_thread_id.strip():
             user_thread_id = str(uuidlib.uuid4())
@@ -105,7 +106,7 @@ async def chat(request: ChatRequest):
                 user_id=user_id,
                 workspace_id=user_workspace_id,
                 thread_id=user_thread_id,
-                allowed_role_ids=request.allowed_role_ids,
+                allowed_role_ids=[user_role],
             ),
         )
 

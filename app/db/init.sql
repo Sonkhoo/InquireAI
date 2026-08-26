@@ -52,7 +52,7 @@ create index if not exists idx_messages_conversation_id on messages(conversation
 
 insert into workspaces (id, name)
 values
-    ('11111111-1111-1111-1111-111111111111', 'Demo Workspace'),
+    ('14f099e3-35bf-40db-a794-69706dac664f', 'Demo Workspace'),
     ('22222222-2222-2222-2222-222222222222', 'Engineering'),
     ('33333333-3333-3333-3333-333333333333', 'Finance'),
     ('44444444-4444-4444-4444-444444444444', 'HR')
@@ -60,8 +60,8 @@ on conflict (id) do nothing;
 
 insert into users (id, email, display_name, password, role, workspace_id)
 values
-    ('00000000-0000-0000-0000-000000000001', 'john@inquire.ai', 'John', 'dev-only', 'admin', '11111111-1111-1111-1111-111111111111'),
-    ('00000000-0000-0000-0000-000000000002', 'alice@inquire.ai', 'Alice', 'dev-only', 'engineer','11111111-1111-1111-1111-111111111111'),
-    ('00000000-0000-0000-0000-000000000003', 'bob@inquire.ai', 'Bob', 'dev-only', 'marketer', '11111111-1111-1111-1111-111111111111')
+    ('00000000-0000-0000-0000-000000000001', 'john@inquire.ai', 'John', 'dev-only', 'admin', '14f099e3-35bf-40db-a794-69706dac664f'),
+    ('00000000-0000-0000-0000-000000000002', 'alice@inquire.ai', 'Alice', 'dev-only', 'engineer','14f099e3-35bf-40db-a794-69706dac664f'),
+    ('00000000-0000-0000-0000-000000000003', 'bob@inquire.ai', 'Bob', 'dev-only', 'marketer', '14f099e3-35bf-40db-a794-69706dac664f')
 on conflict (id) do nothing;
 

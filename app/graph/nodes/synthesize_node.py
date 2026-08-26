@@ -5,6 +5,8 @@ LangGraph node: grounded synthesis + programmatic citation validation
 
 from typing import cast
 
+from langchain_core.messages import AIMessage
+
 from app.graph.runtime import AgentState
 from app.models import Citation, RetrievedChunk
 from app.retrieval.synthesizer import synthesize_response
@@ -12,7 +14,10 @@ from app.logging import logfire
 
 
 def synthesize_node(state: AgentState) -> dict:
-    query = cast(str, state.get("query", ""))
+    query = cast(
+        str,
+        state.get("rewritten_query", state.get("query", "")),
+    )
     reranked_chunks = cast(list[RetrievedChunk], state.get("reranked_chunks", []))
 
     result = synthesize_response(query=query, retrieved_chunks=reranked_chunks)
@@ -46,4 +51,8 @@ def synthesize_node(state: AgentState) -> dict:
             dropped=dropped,
         )
 
-    return {"answer": result.response, "citations": citations}
+    return {
+        "answer": result.response,
+        "citations": citations,
+        "messages": [AIMessage(content=result.response)],
+    }

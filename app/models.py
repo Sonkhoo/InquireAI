@@ -32,10 +32,6 @@ class ChatRequest(BaseModel):
         ...,
         description="Workspace the request is scoped to.",
     )
-    allowed_role_ids: list[str] = Field(
-        default_factory=list,
-        description="Roles allowed to access documents.",
-    )
     session_history: list[dict[str, Any]] = Field(
         default_factory=list,
         description="Prior turns in this thread, for contextual query rewrite.",

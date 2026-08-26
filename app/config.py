@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "json"
     CACHE_TTL: int = 3600  
     MAX_TRIES: int = 3
+    MAX_HOPS: int = 5
+    CONFIDENCE_THRESHOLD: float = 0.5
 
     model_config = {
         "env_file": ".env",

@@ -40,12 +40,3 @@ def guard_node(state: AgentState) -> dict:
     }
 
 
-def route_after_guard(state: AgentState) -> str:
-    """Conditional edge: blocked queries terminate, allowed ones continue."""
-    guard_status = state.get("guard_status")
-
-    if guard_status == "allowed":
-        return "allowed"
-    elif guard_status == "blocked":
-        return "blocked"
-    raise ValueError(f"Invalid guard_status: {guard_status}")

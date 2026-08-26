@@ -3,13 +3,14 @@ Increment hop count in the state graph. This node is used to track the number of
 """
 from typing import cast
 from app.graph.runtime import AgentState
+from app.config import get_settings
+
+settings = get_settings()
+MAX_HOPS = settings.MAX_HOPS
 
 
-MAX_HOPS = 5  
 def increment_hop_node(state: AgentState) -> dict:
     hop_count = cast(int, state.get("hop_count", 0))
 
-    if hop_count >= MAX_HOPS:
-        raise Exception(f"Maximum number of hops ({MAX_HOPS}) reached.")
 
     return {"hop_count": hop_count + 1}

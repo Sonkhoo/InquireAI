@@ -73,6 +73,7 @@ def get_conversation(user_id: str, workspace_id: str, thread_id: str, limit: int
             "select m.id, m.content, m.role, m.metadata from messages m "
             "join conversations c on c.id = m.conversation_id "
             "where c.user_id = %s and c.workspace_id = %s and c.id = %s "
+            "order by m.created_at asc "
             "limit %s",
             (user_id, workspace_id, thread_id, limit)
         )
