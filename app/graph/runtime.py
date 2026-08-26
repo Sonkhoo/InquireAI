@@ -55,6 +55,10 @@ class AgentState(TypedDict, total=False):
     # Control
     hop_count: int
 
+    # Guard
+    guard_status: Literal["allowed", "blocked"] | None
+    guard_reason: str | None
+
     # Agent reasoning
     retrieval_sufficient: bool
     missing_information: str | None
