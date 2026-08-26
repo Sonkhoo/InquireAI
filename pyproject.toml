@@ -32,6 +32,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.32",
     "qdrant-client>=1.19.0",
+    "requests>=2.34.2",
     "sentence-transformers>=5.6.1",
     "slowapi>=0.1.10",
     "streamlit>=1.61.1",
