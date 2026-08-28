@@ -18,13 +18,13 @@ def synthesize_node(state: AgentState) -> dict:
         str,
         state.get("rewritten_query", state.get("query", "")),
     )
-    reranked_chunks = cast(list[RetrievedChunk], state.get("reranked_chunks", []))
+    evidence_chunks = cast(list[RetrievedChunk], state.get("evidence_chunks", []))
 
-    result = synthesize_response(query=query, retrieved_chunks=reranked_chunks)
+    result = synthesize_response(query=query, retrieved_chunks=evidence_chunks)
 
     # Programmatic citation validation: only chunk_ids that actually
     # exist in the retrieved set survive — cheap lookup, catches hallucinated IDs.
-    chunk_by_id = {chunk.chunk_id: chunk for chunk in reranked_chunks}
+    chunk_by_id = {chunk.chunk_id: chunk for chunk in evidence_chunks}
     citations: list[Citation] = []
     dropped: list[str] = []
 

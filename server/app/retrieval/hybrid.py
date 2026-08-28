@@ -1,18 +1,6 @@
 """
-query/retrieval/hybrid.py
-
 Query-time hybrid retrieval: dense (Jina v4) + sparse (BM25) + RRF fusion,
 with RBAC enforced as part of the same Qdrant query (not post-hoc).
-
-Mirrors store.py exactly on the embedding side: same DENSE_MODEL,
-SPARSE_MODEL, DENSE_DIM, and Qdrant Cloud Inference via Document(text=...,
-model=...).
-
-NOTE: no `task` option is set here (see store.py's matching note) -- Jina
-v4 ideally wants "retrieval.query" on this side vs "retrieval.passage" at
-index time, but I could not confirm Qdrant's Cloud Inference options
-schema actually honors that key for this model. Check the Inference tab
-in the Qdrant Cloud Console before adding it back on both sides.
 """
 
 from __future__ import annotations
@@ -52,8 +40,8 @@ DENSE_MODEL = settings.dense_model
 SPARSE_MODEL =  settings.sparse_model
 DENSE_DIM = 1024  
 
-PREFETCH_LIMIT = 10
-DEFAULT_LIMIT = 5
+PREFETCH_LIMIT = 5
+DEFAULT_LIMIT = 2
 MAX_SEARCH_RETRIES = 3
 
 
@@ -238,35 +226,3 @@ def hybrid_search(
     )
 
     return retrieved_reranked_chunks
-
-# if __name__ == "__main__":
-#     # Example usage
-#     from app.logging import init_logging
-
-#     init_logging()
-
-#     client = _get_client()
-#     try:
-#         results = hybrid_search(
-#             query="What the hell?",
-#             workspace_id="ws_test",
-#             allowed_role_ids=["admin", "role_2"],
-#             file_id=None,
-#             limit=5,
-#             client=client,
-#         )
-#         for chunk in results:
-#             confidence = compute_confidence(
-#                 query="What the hell?",
-#                 retrieved_chunks=[chunk]
-#             )
-#             chunk.confidence = confidence
-#         print(results)
-#         answer = synthesize_response(
-#             query="What the hell?",
-#             retrieved_chunks=results
-#         )
-#         print("Answer:", answer)
-#     except (ResponseHandlingException,UnexpectedResponse) as e:
-#         logfire.error(f"Qdrant query failed: {e}")
-    

@@ -63,12 +63,20 @@ def retrieval_planner_node(state: AgentState, runtime: Runtime[RequestContext]) 
 
     # Cold start / no new info: the STM-resolved query IS the right search.
     # Skip the planner LLM call entirely to save latency and tokens.
-    if not evidence or not missing_information:
+    hop_count = state.get("hop_count", 0)
+
+    # First retrieval: use the STM-resolved query directly.
+    # No planner LLM call is needed.
+    if hop_count == 0:
         logfire.info(
-            "Retrieval planner: cold start, using rewritten query",
+            "Retrieval planner: initial retrieval",
             retrieval_query=rewritten_query,
+            hop_count=hop_count,
         )
-        return {"retrieval_query": rewritten_query}
+
+        return {
+            "retrieval_query": rewritten_query,
+        }
 
     # Serialize evidence as readable text instead of dumping Pydantic objects
     evidence_text = "\n\n".join(

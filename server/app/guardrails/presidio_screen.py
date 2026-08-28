@@ -8,7 +8,7 @@ from functools import lru_cache
 
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
-
+from app.logging import logfire
 
 @lru_cache(maxsize=1)
 def get_analyzer() -> AnalyzerEngine:
@@ -26,6 +26,15 @@ def detect_pii(text: str) -> bool:
     """
     Return True when Presidio detects PII in the text.
     """
+
+    PII_ENTITIES = [
+    "PERSON",
+    "EMAIL_ADDRESS",
+    "PHONE_NUMBER",
+    "CREDIT_CARD",
+    "US_SSN",
+    "IP_ADDRESS",
+]
     if not text.strip():
         return False
 
@@ -34,7 +43,9 @@ def detect_pii(text: str) -> bool:
     results = analyzer.analyze(
         text=text,
         language="en",
+        entities=PII_ENTITIES,
     )
+    logfire.info("Presidio PII detection results", results=results)
 
     return bool(results)
 
@@ -50,6 +61,8 @@ def anonymize_pii(text: str) -> tuple[str, bool]:
         text=text,
         language="en",
     )
+
+    
 
     if not results:
         return text, False

@@ -7,7 +7,7 @@ from typing import cast
 from app.graph.runtime import AgentState
 from app.guardrails.prompt_guard import detect_prompt_injection
 from app.guardrails.presidio_screen import detect_pii
-
+from app.logging import logfire
 
 def guard_node(state: AgentState) -> dict:
     query = cast(str, state.get("query", ""))
@@ -32,6 +32,8 @@ def guard_node(state: AgentState) -> dict:
             "guard_status": "blocked",
             "guard_reason": "pii_detected",
         }
+
+    logfire.info("Guard node:", query=query, guard_status="allowed")
 
     # 4. Everything passed
     return {

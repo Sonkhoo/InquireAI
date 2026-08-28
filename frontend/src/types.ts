@@ -12,13 +12,12 @@ export interface Conversation {
 }
 
 export interface Citation {
-  filename?: string;
-  source?: string;
-  document_name?: string;
-  page_number?: number;
-  page?: number;
-  chunk_id?: string;
-  [key: string]: unknown;
+  chunk_id: string;
+  file_id: string;
+  filename?: string | null;
+  section_title?: string | null;
+  page_start?: number | null;
+  page_end?: number | null;
 }
 
 export interface MessageMetadata {

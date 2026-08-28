@@ -6,6 +6,7 @@ Validates uploaded files and triggers the AI ingestion pipeline for processing a
 
 import uuid
 from pathlib import Path
+import tempfile
 
 from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
 import logfire
@@ -19,7 +20,7 @@ from app.memory import memory
 
 router = APIRouter(tags=["Files"])
 
-UPLOAD_DIR = Path("/tmp/inquire-uploads")
+UPLOAD_DIR = Path(tempfile.gettempdir()) / "inquire-uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_FILE_SIZE_MB = 50
@@ -50,12 +51,11 @@ async def upload_file(
             status_code=400,
             detail="File must have a valid filename",
         )
-    ext = file.filename.rsplit(".", 1)[-1].lower()
-
-    if ext not in SUPPORTED_TYPES:
+    ext_check = Path(file.filename).suffix.lstrip(".").lower()
+    if ext_check not in SUPPORTED_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type: {ext}"
+            detail=f"Unsupported file type: {ext_check}"
         )
 
     role_ids = [r.strip() for r in allowed_role_ids.split(",") if r.strip()]
@@ -66,8 +66,10 @@ async def upload_file(
             detail="allowed_role_ids cannot be empty"
         )
 
+    safe_filename = Path(file.filename).name
     file_id = str(uuid.uuid4())
-    dest_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
+    ext = Path(safe_filename).suffix  # e.g. ".pdf"
+    dest_path = UPLOAD_DIR / f"{file_id}{ext}"
 
     size = 0
 
@@ -98,6 +100,7 @@ async def upload_file(
             workspace_id,
             role_ids,
             file_id,
+            filename=safe_filename,
         )
 
     except (TerminalParseError, TerminalStoreError) as exc:

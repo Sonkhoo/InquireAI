@@ -16,4 +16,5 @@ def init_logging() -> None:
         send_to_logfire=True,
         service_name="ai-service",
         environment=os.getenv("APP_ENV", "development"),
+        scrubbing=False
     )

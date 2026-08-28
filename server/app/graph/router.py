@@ -27,6 +27,8 @@ from app.graph.runtime import AgentState, RequestContext
 from app.graph.nodes.guard_node import guard_node
 settings = get_settings()
 
+from app.logging import logfire
+
 _checkpointer: PostgresSaver | None = None
 
 # The checkpointer is a global singleton that is lazily initialized on first use.
@@ -63,6 +65,7 @@ def _route_on_confidence(state: AgentState) -> str:
             return "synthesize"  
 def _route_after_guard(state: AgentState) -> str:
     guard_status = state.get("guard_status")
+    logfire.info("Guard condition for route:", guard_status=guard_status)
 
     if guard_status == "allowed":
         return "allowed"

@@ -1040,16 +1040,9 @@ function Message({
             {citations.map(
               (citation, index) => {
 
-                const source =
-                  citation.filename ||
-                  citation.source ||
-                  citation.document_name ||
-                  "Document";
-
-                const page =
-                  citation.page_number ||
-                  citation.page;
-
+                const pages = citation.page_start != null
+                  ? `Page : ${citation.page_start}${citation.page_end != null && citation.page_end !== citation.page_start ? `–${citation.page_end}` : ""}`
+                  : null;
 
                 return (
                   <div
@@ -1057,14 +1050,16 @@ function Message({
                     className="citation"
                   >
 
-                    <span>
-                      {source}
-                    </span>
+                    {citation.filename && (
+                      <span>{citation.filename}</span>
+                    )}
 
-                    {page && (
-                      <span>
-                        Page {page}
-                      </span>
+                    {citation.section_title && (
+                      <span>{citation.section_title}</span>
+                    )}
+
+                    {pages && (
+                      <span>{pages}</span>
                     )}
 
                   </div>

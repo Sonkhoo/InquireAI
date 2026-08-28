@@ -13,6 +13,8 @@ The retrieval planner uses missing_information to construct the
 next retrieval query.
 """
 
+from xmlrpc import client
+
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.graph.runtime import AgentState
@@ -77,6 +79,8 @@ def sufficiency_node(state: AgentState) -> dict:
         0,
     )
 
+
+
     if not evidence:
 
         logfire.info(
@@ -92,6 +96,13 @@ def sufficiency_node(state: AgentState) -> dict:
                 "Additional retrieval is required."
             ),
         }
+
+    logfire.info(
+        "Sufficiency check entry",
+        hop_count=hop_count,
+        evidence_count=len(evidence),
+        evidence_chunk_ids=[getattr(c, "chunk_id", None) for c in evidence],
+    )
 
 
     evidence_text_parts: list[str] = []
@@ -221,22 +232,22 @@ Return only the structured output requested by the schema.
         model=get_secondary_model(),
         messages=[
             {
-                "role": "system",
+                "role": "user",
                 "content": prompt,
             },
         ],
         reasoning_effort="low",
+        reasoning_format="hidden",
         temperature=0.0,
         response_format={
             "type": "json_schema",
             "json_schema": {
-                "strict": True,
                 "name": "sufficiency_decision",
+                "strict": True,
                 "schema": SufficiencyDecision.model_json_schema(),
             },
         },
     )
-
 
     if not response.choices:
         raise ValueError(

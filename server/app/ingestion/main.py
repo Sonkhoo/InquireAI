@@ -4,6 +4,7 @@ import argparse
 import sys
 import time
 import uuid
+from pathlib import Path
 
 from app.logging import logfire
 from app.ingestion.parse import parse_document, TerminalParseError
@@ -22,6 +23,7 @@ def run_pipeline(
     workspace_id: str,
     allowed_role_ids: list[str],
     file_id: str | None = None,
+    filename: str | None = None,
 ) -> int:
     """
     Run one file through the complete ingestion pipeline.
@@ -40,7 +42,7 @@ def run_pipeline(
     """
 
     file_id = file_id or str(uuid.uuid4())
-    filename = file_path.rsplit("/", 1)[-1]
+    filename = filename or Path(file_path).name
 
     pipeline_start = time.monotonic()
 

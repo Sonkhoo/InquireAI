@@ -45,12 +45,11 @@ general_chat:
 - Greetings
 - Casual conversation
 - Personal conversation based on the conversation history
-- Questions answerable from the conversation itself
-- Follow-up questions whose answer is already contained in the conversation
 
 doc_search:
 - Questions requiring information from documents
 - Questions asking about company/internal knowledge
+- Any question that requires retrieval from a knowledge base or external source
 - Questions requiring retrieval from the knowledge base
 - Questions where the user explicitly asks about a document/file
 - Follow-up questions about previously discussed information when
