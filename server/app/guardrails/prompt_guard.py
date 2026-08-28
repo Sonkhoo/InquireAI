@@ -1,9 +1,11 @@
 from app.logging import logfire
 from functools import lru_cache
 from typing import Any
+from app.config import get_settings
 
+settings = get_settings()
 
-PROMPT_GUARD_MODEL = "meta-llama/Llama-Prompt-Guard-2-22M"
+PROMPT_GUARD_MODEL = settings.prompt_guard_model
 MALICIOUS_THRESHOLD = 0.5
 
 

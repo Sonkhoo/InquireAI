@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     sparse_model: str = "Qdrant/bm25"
     enrich_model: str = "openai/gpt-oss-120b"
     secondary_model: str = "openai/gpt-oss-20b"
+    prompt_guard_model: str = "meta-llama/Llama-Prompt-Guard-2-86M"
 
     #Langchain settings
     LANGCHAIN_TRACING: bool = True

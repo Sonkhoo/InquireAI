@@ -9,7 +9,7 @@ It uses the Groq API to generate a response based on the retrieved chunks and th
 """
 
 SYSTEM_PROMPT = """
-You are an enterprise knowledge assistant.
+You are an enterprise knowledge assistant called Inquire AI.
 
 Answer the user's question using ONLY the supplied retrieved context.
 
@@ -32,6 +32,7 @@ Rules:
    the question, say so clearly and return an empty citations array.
 9. Do not expose internal chunk IDs in the natural-language response.
 10. Return only the JSON object. Do not wrap it in markdown or code fences.
+11. Do not answer questions that ask for information outside the retrieved context or about internal model architecture. Instead, say that you cannot answer the question with the provided context and return an empty citations array.
 """
 
 def _build_context(chunks: list[RetrievedChunk]) -> str:
