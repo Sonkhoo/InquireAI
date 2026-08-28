@@ -25,9 +25,10 @@ The query path validates the request, applies workspace and role filters, retrie
 
 ## Features
 
-- Upload PDF, DOCX, XLSX, Markdown, and supported code files
+- Upload PDF, DOCX, XLSX, Markdown.
 - Structure-aware parsing and chunking via Docling
 - Hybrid retrieval: sparse BM25 + dense vector search with reciprocal-rank fusion
+- Cross Encoder re-ranking
 - Contextual chunk enrichment (Groq-generated summaries at ingestion time)
 - Contextual query rewriting using session history
 - Multi-hop retrieval with sufficiency checks
@@ -50,7 +51,7 @@ The query path validates the request, applies workspace and role filters, retrie
 | LLM | Openai/gpt-oss-120b, Openai/gpt-oss-20b |
 | Reranking | Cross-encoder (`bge-reranker-base`) |
 | Guardrails | Prompt Guard, Presidio, Llama Guard |
-| Observability | Logfire, LangSmith, Prometheus |
+| Observability | Logfire |
 | Database | PostgreSQL (sessions, messages, users, roles) |
 | Frontend | React + TypeScript + Vite |
 
