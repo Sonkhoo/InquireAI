@@ -995,38 +995,6 @@ function Message({
         {message.content}
       </div>
 
-
-      {!isUser && metadata && (
-
-        <div className="message-details">
-
-          {metadata.confidence !== null &&
-            metadata.confidence !== undefined && (
-
-              <span>
-                Confidence:{" "}
-                {Number(
-                  metadata.confidence
-                ).toFixed(2)}
-              </span>
-
-            )}
-
-
-          {metadata.model_used && (
-
-            <span>
-              Model:{" "}
-              {metadata.model_used}
-            </span>
-
-          )}
-
-        </div>
-
-      )}
-
-
       {!isUser &&
         citations.length > 0 && (
 
