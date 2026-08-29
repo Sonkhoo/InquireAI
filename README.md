@@ -6,7 +6,7 @@ InquireAI is an enterprise RAG knowledge assistant for asking grounded questions
 
 
 ## Demo Flow
-**Demo video:** [Watch the InquireAI demo](docs/media/demo-video.mp4)
+**Demo video:** [Watch the InquireAI demo](https://youtu.be/1uxHVaCqaqs?si=KA-2THIUZf_IzkxR)
 
 ## Architecture
 
