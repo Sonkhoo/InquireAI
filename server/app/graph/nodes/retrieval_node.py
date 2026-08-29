@@ -125,14 +125,34 @@ Instructions:
 
 1. Generate exactly ONE retrieval query.
 
-2. The query must target information required to answer the
-   original user question.
+2. The query must target the missing information itself, not the
+   original user question's broader subject matter. If the missing
+   information is one intermediate lookup step away from the final
+   answer, target that lookup step specifically rather than
+   re-describing what the user ultimately wants to know.
+
 3. If previous evidence exists, use it to identify what information
    is still missing.
+
 4. Do not invent facts.
+
 5. Do not answer the user's question.
+
 6. Do not repeat the previous query unless absolutely necessary.
+
 7. If the query is a question, rephrase it as a declarative statement.
+
+8. If the missing information involves resolving a codename, alias,
+   internal identifier, or shorthand term to its underlying meaning,
+   the query MUST explicitly search for how that term is defined,
+   registered, or resolved — e.g. "<TERM> codename registry
+   definition" or "<TERM> resolves to" — rather than combining the
+   term with the original question's subject matter. For example,
+   given the missing information "the retry policy for the HERON
+   module is not provided," prefer a query like "HERON incident
+   codename registry resolves to" over "HERON module retry policy
+   for webinar emails" — the latter re-searches for the original
+   question's topic instead of performing the lookup that unblocks it.
 
 Return the most useful query for the next knowledge-base search.
 """

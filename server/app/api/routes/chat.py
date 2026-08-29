@@ -93,9 +93,16 @@ async def chat(request: ChatRequest):
         # 4. Run the graph with server-side history
         input_state: AgentState = {
             "query": request.message,
-            "messages": [
-                HumanMessage(content=request.message)
-            ],
+            "messages": [HumanMessage(content=request.message)],
+            "evidence_chunks": [],
+            "reranked_chunks": [],
+            "retrieved_chunks": [],
+            "hop_count": 0,
+            "missing_information": "",
+            "retrieval_sufficient": False,
+            "confidence": 0.0,
+            "citations": [],
+            "answer": "",
         }
         logfire.debug("chat: invoking graph", input_state=input_state)
 
